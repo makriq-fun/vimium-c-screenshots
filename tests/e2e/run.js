@@ -190,14 +190,7 @@ async function waitForClipboardImage(page, previous) {
 }
 
 async function resetFocus(page) {
-  await page.evaluate(() => {
-    const box = document.getElementById("__vcs_pastebox");
-    if (box) { box.remove(); }
-    const active = document.activeElement;
-    if (active && active !== document.body && active.blur) { active.blur(); }
-  }).catch(() => {});
   await page.bringToFront().catch(() => {});
-  await page.keyboard.press("Escape").catch(() => {});
 }
 
 const near = (actual, expected, tolerance, label) => {
