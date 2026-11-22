@@ -139,6 +139,7 @@ npm run test:geometry   # чистые функции планирования �
 npm run chrome
 npm install --no-save playwright@1.65.1
 npx playwright install --with-deps chromium
+sudo apt-get install -y xvfb xclip
 xvfb-run -a node tests/e2e/run.js
 ```
 

@@ -15,6 +15,8 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const { execFileSync } = require("node:child_process");
+const { PNG } = require("pngjs");
 
 const EXT_PATH = path.resolve(process.env.EXT_PATH || "dist");
 const OUT_DIR = path.resolve(process.env.OUT_DIR || "tests/e2e/out");
@@ -118,64 +120,70 @@ async function waitForUI(page, predicate) {
   }, predicate, { timeout: 8000 });
 }
 
-async function clearClipboard(page) {
-  await page.evaluate(async () => {
-    try { await navigator.clipboard.writeText(""); } catch { /* ignore */ }
-  });
-  await delay(120);
+function clearClipboard() {
+  try {
+    execFileSync("xclip", ["-selection", "clipboard", "-i"], { input: " ", timeout: 5000 });
+  } catch { /* xclip may be unavailable outside CI */ }
 }
 
-async function readClipboard(page) {
-  return page.evaluate(async () => {
-    let items;
-    try { items = await navigator.clipboard.read(); } catch { return null; }
-    for (const item of items) {
-      if (!item.types.includes("image/png")) { continue; }
-      const blob = await item.getType("image/png");
-      const bitmap = await createImageBitmap(blob);
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(bitmap, 0, 0);
-      const pixel = (x, y) => Array.from(ctx.getImageData(Math.max(0, Math.round(x)),
-          Math.max(0, Math.round(y)), 1, 1).data);
-      const redRows = [];
-      const step = Math.max(1, Math.round(bitmap.height / 400));
-      for (let y = 0; y < Math.min(bitmap.height, 240); y += step) {
-        let red = 0;
-        for (let x = 0; x < Math.min(bitmap.width, 600); x += Math.max(1, Math.round(bitmap.width / 120))) {
-          const d = ctx.getImageData(x, y, 1, 1).data;
-          if (d[0] > 180 && d[1] < 90 && d[2] < 90) { red++; }
-        }
-        if (red > 20) { redRows.push(y); }
-      }
-      return {
-        width: bitmap.width,
-        height: bitmap.height,
-        type: blob.type,
-        redRows,
-        topLeft: pixel(12, 12),
-        topBand: pixel(20, 14),
-        middle: pixel(bitmap.width / 2, bitmap.height / 2),
-        bottom: pixel(bitmap.width / 2, bitmap.height - 16),
-        rightBottom: pixel(bitmap.width - 20, bitmap.height - 20),
-      };
-    }
+function clipboardTargets() {
+  try {
+    return execFileSync("xclip", ["-selection", "clipboard", "-t", "TARGETS", "-o"],
+        { encoding: "utf8", timeout: 5000 }).trim().replace(/\s+/g, " ");
+  } catch (err) {
+    return "xclip unavailable: " + (err.message || err);
+  }
+}
+
+function readClipboardImage() {
+  let buffer;
+  try {
+    buffer = execFileSync("xclip", ["-selection", "clipboard", "-t", "image/png", "-o"],
+        { timeout: 8000, maxBuffer: 64 * 1024 * 1024 });
+  } catch { return null; }
+  if (!buffer || buffer.length < 24 || buffer[0] !== 0x89 || buffer.toString("ascii", 1, 4) !== "PNG") {
     return null;
-  });
+  }
+  let png;
+  try { png = PNG.sync.read(buffer); } catch { return null; }
+  const pixel = (x, y) => {
+    const px = Math.max(0, Math.min(png.width - 1, Math.round(x)));
+    const py = Math.max(0, Math.min(png.height - 1, Math.round(y)));
+    const i = (png.width * py + px) << 2;
+    return [png.data[i], png.data[i + 1], png.data[i + 2], png.data[i + 3]];
+  };
+  const redRows = [];
+  const step = Math.max(1, Math.round(png.height / 400));
+  for (let y = 0; y < Math.min(png.height, 240); y += step) {
+    let red = 0;
+    for (let x = 0; x < Math.min(png.width, 600); x += Math.max(1, Math.round(png.width / 120))) {
+      const d = pixel(x, y);
+      if (d[0] > 180 && d[1] < 90 && d[2] < 90) { red++; }
+    }
+    if (red > 20) { redRows.push(y); }
+  }
+  fs.writeFileSync(path.join(OUT_DIR, "last-clipboard.png"), buffer);
+  return {
+    width: png.width,
+    height: png.height,
+    redRows,
+    topLeft: pixel(12, 12),
+    topBand: pixel(20, 14),
+    middle: pixel(png.width - 24, png.height / 2),
+    bottom: pixel(png.width / 2, png.height - 16),
+    rightBottom: pixel(png.width - 20, png.height - 20),
+  };
 }
 
 async function waitForClipboardImage(page, previous) {
   for (let i = 0; i < 300; i++) {
-    await page.bringToFront().catch(() => {});
-    const image = await readClipboard(page);
+    const image = readClipboardImage();
     if (image && (!previous || image.width !== previous.width || image.height !== previous.height)) {
       return image;
     }
     await delay(100);
   }
-  throw new Error("the extension did not copy an image to the clipboard");
+  throw new Error("the extension did not copy an image to the clipboard; targets: " + clipboardTargets());
 }
 
 const near = (actual, expected, tolerance, label) => {
@@ -210,7 +218,7 @@ async function elementInfo(page) {
 
 async function testElement(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await clearClipboard(page);
+  clearClipboard();
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("s");
@@ -232,9 +240,8 @@ async function testElement(page) {
   const workers = page.context().serviceWorkers();
   if (workers[0]) {
     console.log("   sw debug:", await workers[0].evaluate(() => globalThis.__vcsDebug || []));
-  } else {
-    console.log("   no service worker");
   }
+  console.log("   clipboard targets:", clipboardTargets());
   const image = await waitForClipboardImage(page, null);
   const scale = image.width / info.w;
   near(image.width, info.w * info.dpr, 3, "element width");
@@ -249,7 +256,7 @@ async function testElement(page) {
 
 async function testViewport(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await clearClipboard(page);
+  clearClipboard();
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("v");
@@ -262,7 +269,7 @@ async function testViewport(page) {
 
 async function testFullPage(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await clearClipboard(page);
+  clearClipboard();
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("a");
@@ -279,13 +286,13 @@ async function testFullPage(page) {
 
 async function testEscape(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await clearClipboard(page);
+  clearClipboard();
   await pressSequence(page, ["s", "s"], 70);
   await waitForUI(page, "markers");
   await page.keyboard.press("Escape");
   await waitForUI(page, "gone");
   await delay(600);
-  assert.equal(await readClipboard(page), null, "Esc during hint selection does not copy anything");
+  assert.equal(readClipboardImage(), null, "Esc during hint selection does not copy anything");
 
   await pressSequence(page, ["s", "s"], 70);
   await waitForUI(page, "markers");
@@ -296,7 +303,7 @@ async function testEscape(page) {
   await page.keyboard.press("Escape");
   await waitForUI(page, "gone");
   await delay(600);
-  assert.equal(await readClipboard(page), null, "Esc after selecting does not copy anything");
+  assert.equal(readClipboardImage(), null, "Esc after selecting does not copy anything");
 }
 
 async function testNormalMode(page) {
@@ -322,7 +329,7 @@ async function testZoom(page, context) {
     await chrome.tabs.setZoom(tab.id, 1.5);
   });
   await delay(700);
-  await clearClipboard(page);
+  clearClipboard();
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("v");
