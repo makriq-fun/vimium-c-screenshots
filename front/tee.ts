@@ -10,6 +10,19 @@
   const browser_ = useBrowser ? (browser as typeof chrome) : chrome
   const runtime = browser_.runtime
   const isOffscreen = !!Build.MV3 && location.pathname.endsWith("offscreen.html")
+  const clipboard = navigator.clipboard
+  const fetch_ = (window as unknown as { fetch: (url: string) => Promise<{ blob(): Promise<Blob> }> }).fetch
+  if (Build.BTypes & BrowserType.Chrome && typeof ClipboardItem === "function" && clipboard && clipboard.write
+      && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg: any, _sender: chrome.runtime.MessageSender
+        , sendResponse: (res: { ok: boolean }) => void): boolean | void => {
+      if (!msg || msg.target !== "vcs-copy-image" || typeof msg.u !== "string") { return }
+      fetch_(msg.u).then(res => res.blob()).then(blob => {
+        return clipboard.write!([new ClipboardItem({ "image/png": blob })])
+      }).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }))
+      return true
+    })
+  }
   const destroy = (): void => {
     isOffscreen || (parent as Window).focus()
     window.closed || window.close()

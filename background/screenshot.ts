@@ -143,16 +143,57 @@ const copyImageUrl = (url: string): Promise<boolean> => {
   })
 }
 
+const blobToDataUrl = async (blob: Blob): Promise<string> => {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    const end = Math.min(bytes.length, i + 0x8000)
+    for (let j = i; j < end; j++) { binary += String.fromCharCode(bytes[j]) }
+  }
+  return "data:image/png;base64," + btoa(binary)
+}
+
+const copyViaOffscreen = async (blob: Blob): Promise<boolean> => {
+  if (!(Build.BTypes & BrowserType.Chrome) || !browser_.offscreen || blob.size > 24_000_000) { return false }
+  let url: string
+  try { url = await blobToDataUrl(blob) } catch { return false }
+  try {
+    browser_.offscreen.createDocument({
+      reasons: ["CLIPBOARD"], url: "/front/offscreen.html", justification: "copy a screenshot",
+    }, () => { /* an already open offscreen document is fine */ })
+  } catch { /* already open */ }
+  await delay(120)
+  return new Promise<boolean>(resolve => {
+    let finished = false
+    const finish = (ok: boolean): void => {
+      if (finished) { return }
+      finished = true
+      clearTimeout(timer)
+      resolve(ok)
+    }
+    const timer = setTimeout(() => { finish(false) }, 6000)
+    try {
+      chrome.runtime.sendMessage({ target: "vcs-copy-image", u: url }, (res: { ok?: boolean } | null) => {
+        finish(!!res && res.ok === true)
+      })
+    } catch { finish(false) }
+  })
+}
+
 const copyImageBlob = (blob: Blob): Promise<boolean> => {
   debug("copy blob " + blob.size)
   if (OnFirefox) {
     return blob.arrayBuffer().then(copyPngData, () => false).then(ok => { debug("copy ff " + ok); return ok })
   }
-  return new Promise<boolean>(resolve => {
-    handleImageUrl("", blob, kTeeTask.CopyImage, (ok: BOOL | boolean) => {
-      debug("copy chrome " + !!ok)
-      resolve(!!ok)
-    }, "screenshot.png", "")
+  return copyViaOffscreen(blob).then(ok => {
+    debug("copy offscreen " + ok)
+    if (ok) { return true }
+    return new Promise<boolean>(resolve => {
+      handleImageUrl("", blob, kTeeTask.CopyImage, (copied: BOOL | boolean) => {
+        debug("copy chrome " + !!copied)
+        resolve(!!copied)
+      }, "screenshot.png", "")
+    })
   })
 }
 
