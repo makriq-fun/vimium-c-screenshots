@@ -359,10 +359,16 @@ async function testViewport(page) {
 
 async function testFullPage(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
+  await page.bringToFront();
   await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("a");
+  await delay(15000);
+  const state = await page.evaluate(() => document.documentElement.getAttribute("data-vcs-state"));
+  console.log("   full page state:", state);
+  const workers = page.context().serviceWorkers();
+  if (workers[0]) { console.log("   full page sw:", await workers[0].evaluate(() => globalThis.__vcsDebug || [])); }
   const image = await waitForClipboardImage(page, null);
   const info = await elementInfo(page);
   near(image.width, info.docW * info.dpr, 4, "full page width");

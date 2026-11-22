@@ -23,6 +23,7 @@ from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 
 PAGE = """<!doctype html>
@@ -306,7 +307,7 @@ def test_escape(driver):
     clipboard_clear(driver)
     press(driver, "ss")
     wait_ui(driver, "markers")
-    press(driver, "Escape")
+    press(driver, [Keys.ESCAPE])
     wait_ui(driver, "gone")
     time.sleep(0.5)
     assert (page_clipboard_png(driver) or clipboard_png()) is None, "Esc during labels must not copy anything"
@@ -317,7 +318,7 @@ def test_escape(driver):
     assert len(markers) > 2
     press(driver, markers[1]["label"])
     wait_ui(driver, "selected")
-    press(driver, "Escape")
+    press(driver, [Keys.ESCAPE])
     wait_ui(driver, "gone")
     time.sleep(0.5)
     assert (page_clipboard_png(driver) or clipboard_png()) is None, "Esc after selecting must not copy anything"
@@ -327,7 +328,7 @@ def test_normal_mode(driver):
     driver.execute_script("window.scrollTo(0, 0)")
     press(driver, "s")
     time.sleep(0.1)
-    press(driver, "Escape")
+    press(driver, [Keys.ESCAPE])
     press(driver, "j")
     time.sleep(0.4)
     assert driver.execute_script("return window.scrollY") > 0, "j still scrolls"

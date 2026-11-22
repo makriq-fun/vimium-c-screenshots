@@ -703,7 +703,10 @@ const copyImageInPage = async (url: string): Promise<boolean> => {
     if (!clipboard || !clipboard.write || typeof ClipboardItem !== "function") { return false }
     await clipboard.write!([new ClipboardItem({ "image/png": blob })])
     return true
-  } catch { return false }
+  } catch (err) {
+    console.warn("[vimium-c-screenshots] page clipboard failed:", "" + err)
+    return false
+  }
 }
 
 const onExtensionMessage = (msg: ScreenshotNS.Message): Promise<ScreenshotNS.Message | void> | void => {
