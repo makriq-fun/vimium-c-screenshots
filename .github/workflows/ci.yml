@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "feat/**" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-firefox:
+    name: Build Firefox (MV2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run mv2-ff
+      - name: Show outputs
+        run: |
+          echo "--- dist ---"
+          find dist -maxdepth 2 -type f | sort | head -40
+          echo "--- zips ---"
+          find . -maxdepth 2 -name '*.zip' -printf '%p %s bytes\n' | sort
+      - name: Upload unpacked Firefox build
+        uses: actions/upload-artifact@v4
+        with:
+          name: vimium-c-screenshots-firefox-unpacked
+          path: dist
+          if-no-files-found: error
+      - name: Upload Firefox zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: vimium-c-screenshots-firefox-zip
+          path: "*.zip"
+          if-no-files-found: error
