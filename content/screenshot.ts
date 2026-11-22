@@ -280,7 +280,7 @@ const collectCandidates = (): Element[] => {
   for (let i = 0; i < nodes.length && out.length < MAX_LABELS * 3; i++) {
     const el = nodes[i]
     if (el.id === UI_ID) { continue }
-    const tag = htmlTag_(el)
+    const tag: string = htmlTag_(el)
     if (tag === "script" || tag === "style" || tag === "template" || tag === "noscript") { continue }
     const inputEl = el as HTMLInputElement // a named cast: `tag` is "input" only after this check
     if (tag === "input" && inputEl.type === "hidden") { continue }
@@ -288,7 +288,7 @@ const collectCandidates = (): Element[] => {
     if (r.width < 4 || r.height < 4 || r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) { continue }
     const style = window.getComputedStyle(el)
     if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse"
-        || parseFloat(style.opacity) < 0.05) { continue }
+        || parseFloat(style.opacity || "1") < 0.05) { continue }
     const role = (el.getAttribute("role") || "").toLowerCase()
     const interactive = tag === "a" && el.hasAttribute("href") || tag === "button" || tag === "input"
         || tag === "select" || tag === "textarea" || tag === "summary" || tag === "label"

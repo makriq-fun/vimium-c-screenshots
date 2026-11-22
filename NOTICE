@@ -1,0 +1,17 @@
+Vimium C Screenshots
+====================
+
+This product is a fork of Vimium C (https://github.com/gdh1995/vimium-c).
+
+Original work:
+  Copyright 2014-present Gong Dahan (gdh1995) and Vimium C contributors
+  Licensed under the Apache License, Version 2.0.
+
+Modifications in this fork:
+  Copyright 2026 makriq-fun contributors
+  Keyboard-only element / full-page / viewport screenshots copied to the clipboard,
+  the screenshot UI and capture pipeline, tests and CI.
+
+The original Apache License 2.0 text is in LICENSE.txt and applies to the whole work.
+The names "Vimium C" and "Vimium C Screenshots" and the original project's attribution
+must not be removed.

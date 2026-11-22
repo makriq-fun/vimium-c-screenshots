@@ -1,0 +1,60 @@
+name: Sign Firefox package (AMO, manual)
+
+# This workflow only runs when a maintainer starts it and has configured the repository secrets
+# WEB_EXT_API_KEY and WEB_EXT_API_SECRET (AMO API credentials for the add-on's author).
+# It never stores or prints the secrets. Without them the workflow stops instead of trying to
+# bypass Firefox's signature requirement.
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "AMO channel"
+        required: true
+        default: "unlisted"
+        type: choice
+        options:
+          - unlisted
+          - listed
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    name: Build and sign with web-ext
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run mv2-ff
+      - name: Check credentials
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::error::WEB_EXT_API_KEY / WEB_EXT_API_SECRET secrets are not configured."
+            echo "Add them in Settings -> Secrets and variables -> Actions. See README.md."
+            exit 1
+          fi
+      - name: Sign
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          npm install --no-save web-ext@10.8.0
+          mkdir -p signed
+          npx web-ext sign --source-dir dist --channel "${{ inputs.channel }}" \
+            --api-key "$WEB_EXT_API_KEY" --api-secret "$WEB_EXT_API_SECRET" \
+            --artifacts-dir signed
+          ls -l signed
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-firefox-xpi
+          path: signed
+          if-no-files-found: error
