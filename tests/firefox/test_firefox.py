@@ -249,6 +249,7 @@ def test_element(driver):
     wait_ui(driver, "selected")
     press(driver, "s")
     state = wait_state(driver)
+    print("   state:", state)
     assert state.startswith("ok:"), state
     data = wait_clipboard(driver)
     (width, height), image = image_size(data)
@@ -268,6 +269,7 @@ def test_viewport(driver):
     clear_state(driver)
     press(driver, "sv")
     state = wait_state(driver)
+    print("   state:", state)
     assert state.startswith("ok:"), state
     data = wait_clipboard(driver)
     (width, height), image = image_size(data)

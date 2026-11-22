@@ -291,11 +291,25 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
   }
 }
 
+const ensureActive = (tabId: number): Promise<void> => new Promise(resolve => {
+  try {
+    if (OnFirefox) {
+      const update = browser_.tabs.update as unknown as
+          ((id: number, props: { active: boolean }) => Promise<unknown>)
+      update.call(browser_.tabs, tabId, { active: true }).then(() => resolve(), () => resolve())
+      return
+    }
+    browser_.tabs.update(tabId, { active: true }, () => { resolve() })
+  } catch { resolve() }
+})
+
 const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
     , state: CaptureState): Promise<ScreenshotNS.Message> => {
   const tabId = tab.id!
   const windowId = typeof tab.windowId === "number" ? tab.windowId : browser_.windows.WINDOW_ID_CURRENT
   if (tabId < 0) { return fail("This tab cannot be captured") }
+  debug("ensure active " + tabId)
+  await ensureActive(tabId)
   if (msg.m === "viewport") { return captureViewport(tabId, windowId) }
   return capturePage(tabId, windowId, msg.m || "full", state)
 }
@@ -304,7 +318,7 @@ const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSend
     Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
   debug("msg t=" + msg.t + " m=" + msg.m + " vc=" + msg.vc + " tab=" + (sender.tab && sender.tab.id)
-      + " frame=" + sender.frameId)
+      + " active=" + (sender.tab && sender.tab.active) + " frame=" + sender.frameId)
   console.warn("[vimium-c-screenshots] message:", msg.t, "frame", sender.frameId)
   const tab = sender.tab
   if (msg.t === "abort") {
@@ -321,6 +335,7 @@ const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSend
   return runCapture(tab, msg, state).then(result => {
     activeCaptures.delete(tab.id!)
     debug("result ok=" + result.ok + " e=" + result.e + " w=" + result.w + " h=" + result.h)
+    result.d = debugLog.slice(-10).join(" | ")
     return result
   }, err => {
     activeCaptures.delete(tab.id!)
