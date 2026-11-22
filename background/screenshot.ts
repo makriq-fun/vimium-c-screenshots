@@ -77,8 +77,7 @@ const makeCanvas = (width: number, height: number): ShotCanvas | null => {
 const captureVisible = (windowId: number): Promise<string | null> => new Promise(resolve => {
   try {
     Tabs_.captureVisibleTab(windowId, { format: "png" }, (url: string) => {
-      const err = chrome.runtime.lastError
-      resolve(!err && url ? url : null)
+      resolve(url || null)
     })
   } catch { resolve(null) }
 })
@@ -103,7 +102,7 @@ const sendToTab = <T extends ScreenshotNS.Message>(tabId: number, msg: Screensho
     const timer = setTimeout(() => { finish(null) }, TAB_MESSAGE_TIMEOUT)
     try {
       chrome.tabs.sendMessage(tabId, msg, { frameId: 0 }, (response: T) => {
-        finish(chrome.runtime.lastError || !response ? null : response)
+        finish(response || null)
       })
     } catch { finish(null) }
   })
@@ -196,6 +195,7 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
             || Math.abs(bitmap.height - Math.round(prepared.s.vh * scaleY)) > 1) {
           throw new Error("The page zoom changed while capturing")
         }
+        if (!canvas) { throw new Error("The screenshot canvas is missing") }
         canvas.ctx.drawImage(bitmap, (prepared.s.x - rect.x) * scaleX, (prepared.s.y - rect.y) * scaleY)
       } finally {
         bitmap.close()

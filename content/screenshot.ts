@@ -10,6 +10,7 @@ import {
   getMappedKey, isEscape_, isRepeated_, keybody_, removeHandler_, replaceOrSuppressMost_
 } from "../lib/keyboard_utils"
 import { hudHide, hudShow, hudTip } from "./hud"
+import { GetParent_unsafe_, htmlTag_ } from "../lib/dom_utils"
 
 type ShotMode = ScreenshotNS.Mode
 type ShotRect = ScreenshotNS.Rect
@@ -190,7 +191,7 @@ const ensureRoot = (): ShadowRoot | null => {
   host.style.setProperty("z-index", "2147483647", "important")
   host.style.setProperty("pointer-events", "none", "important")
   host.style.setProperty("display", "block", "important")
-  const root = host.attachShadow({ mode: "open" })
+  const root = host.attachShadow!({ mode: "open" })
   const style = document.createElement("style")
   style.textContent = UI_CSS
   root.appendChild(style)
@@ -198,6 +199,7 @@ const ensureRoot = (): ShadowRoot | null => {
   box.className = "box"
   root.appendChild(box)
   const parent = document.fullscreenElement || document.documentElement
+  if (!parent) { return null }
   parent.appendChild(host)
   hostRoot = root
   labelBox = box
@@ -278,7 +280,7 @@ const collectCandidates = (): Element[] => {
   for (let i = 0; i < nodes.length && out.length < MAX_LABELS * 3; i++) {
     const el = nodes[i]
     if (el.id === UI_ID) { continue }
-    const tag = el.tagName.toLowerCase()
+    const tag = htmlTag_(el)
     if (tag === "script" || tag === "style" || tag === "template" || tag === "noscript") { continue }
     const inputEl = el as HTMLInputElement // a named cast: `tag` is "input" only after this check
     if (tag === "input" && inputEl.type === "hidden") { continue }
@@ -423,7 +425,7 @@ const startSelection = (): void => {
 const styleElement = (): HTMLStyleElement => {
   const style = document.createElement("style")
   style.textContent = CAPTURE_STYLE
-  ;(document.head || document.documentElement).appendChild(style)
+  ;(document.head || document.documentElement!).appendChild(style)
   return style
 }
 
@@ -432,7 +434,7 @@ const collectFixed = (except: Element | null): SavedVisibility[] => {
   const nodes = document.body ? document.body.getElementsByTagName("*") : null
   if (!nodes) { return out }
   for (let i = 0; i < nodes.length; i++) {
-    const el = nodes[i]
+    const el = nodes[i] as HTMLElement // styled elements are HTMLElements in practice
     if (except && (except === el || except.contains(el) || el.contains(except))) { continue }
     const style = window.getComputedStyle(el)
     if (style.position !== "fixed" && style.position !== "sticky") { continue }
@@ -477,21 +479,26 @@ const endCapture = (): void => {
 
 const clippingContainer = (el: Element): string | null => {
   const r = el.getBoundingClientRect()
-  for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+  for (let p = GetParent_unsafe_(el, PNType.DirectElement) as Element | null; p
+      && p !== document.body && p !== document.documentElement
+      ; p = GetParent_unsafe_(p, PNType.DirectElement) as Element | null) {
     const style = window.getComputedStyle(p)
-    if (!/(auto|scroll|hidden|clip)/.test(style.overflowX + " " + style.overflowY)) { continue }
+    const overflow = style.overflowX + " " + style.overflowY
+    if (overflow.indexOf("auto") < 0 && overflow.indexOf("scroll") < 0
+        && overflow.indexOf("hidden") < 0 && overflow.indexOf("clip") < 0) { continue }
     const pr = p.getBoundingClientRect()
     const left = pr.left + p.clientLeft, top = pr.top + p.clientTop
     const right = left + p.clientWidth, bottom = top + p.clientHeight
     if (r.left < left - 1 || r.right > right + 1 || r.top < top - 1 || r.bottom > bottom + 1) {
-      return p.tagName.toLowerCase()
+      return htmlTag_(p)
     }
   }
   return null
 }
 
 const fixedTarget = (el: Element): boolean => {
-  for (let p: Element | null = el; p && p !== document.documentElement; p = p.parentElement) {
+  for (let p: Element | null = el; p && p !== document.documentElement
+      ; p = GetParent_unsafe_(p, PNType.DirectElement) as Element | null) {
     const position = window.getComputedStyle(p).position
     if (position === "fixed" || position === "sticky") { return true }
   }
@@ -499,7 +506,7 @@ const fixedTarget = (el: Element): boolean => {
 }
 
 const pageMetrics = (rect?: ShotRect, fx?: true): ScreenshotNS.Metrics => {
-  const doc = document.documentElement
+  const doc = document.documentElement!
   const body = document.body
   const dw = Math.max(doc.scrollWidth, doc.clientWidth, body ? body.scrollWidth : 0)
   const dh = Math.max(doc.scrollHeight, doc.clientHeight, body ? body.scrollHeight : 0)
@@ -595,7 +602,7 @@ const requestCapture = (m: ShotMode): Promise<ScreenshotNS.Message | null> => ne
   const timer = setTimeout((): void => { finish(null) }, 120_000)
   try {
     chrome.runtime.sendMessage({ vc: "vcs", t: "capture", m } as ScreenshotNS.Message, (res: ScreenshotNS.Message) => {
-      finish(chrome.runtime.lastError || !res ? null : res)
+      finish(res || null)
     })
   } catch { finish(null) }
 })
