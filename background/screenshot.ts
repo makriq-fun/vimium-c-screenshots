@@ -90,7 +90,7 @@ const makeCanvas = (width: number, height: number): ShotCanvas | null => {
   return null
 }
 
-const captureVisible = (windowId: number, tabId: number): Promise<string | null> => new Promise(resolve => {
+const captureVisible = (windowId: number): Promise<string | null> => new Promise(resolve => {
   try {
     if (OnFirefox) {
       const capture = Tabs_.captureVisibleTab as unknown as
@@ -195,7 +195,7 @@ const captureViewport = async (tabId: number, windowId: number): Promise<Screens
   const begin = await sendToTab(tabId, { vc: "vcs", t: "begin", m: "viewport" })
   if (!begin || !begin.ok) { return fail(begin && begin.e || "Cannot access the page") }
   await delay(120)
-  const url = await captureVisible(windowId, tabId)
+  const url = await captureVisible(windowId)
   if (!url) { return fail("The browser refused to capture this tab") }
   const size = await imageSize(url)
   if (!size) { return fail("The captured image could not be decoded") }
@@ -238,7 +238,7 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
       }
       checkAborted(state)
       if (i > 0 && Build.BTypes & BrowserType.Chrome) { await delay(CAPTURE_DELAY) }
-      const url = await captureVisible(windowId, tabId)
+      const url = await captureVisible(windowId)
       if (!url) { throw new Error("The browser refused to capture this tab") }
       const bitmap = await decodeBlob(await fetch(url as `data:${string}`).then(res => res.blob()))
       try {
