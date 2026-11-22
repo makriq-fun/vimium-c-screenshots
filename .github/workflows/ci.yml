@@ -54,8 +54,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vimium-c-screenshots-firefox-zip
-          path: "**/*.zip"
-          if-no-files-found: warn
+          path: "vimium_c-*-firefox-*.zip"
+          if-no-files-found: error
 
   test-chromium:
     name: Browser E2E (Chromium, real clipboard)
@@ -88,8 +88,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vimium-c-screenshots-chrome-zip
-          path: "**/*.zip"
-          if-no-files-found: warn
+          path: "vimium_c-*.zip"
+          if-no-files-found: error
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -150,7 +150,7 @@ jobs:
       - name: Collect packages
         run: |
           mkdir -p release
-          find artifacts -name '*.zip' -exec cp {} release/ \;
+          find artifacts -name 'vimium_c-*.zip' -exec cp {} release/ \;
           ls -l release
       - uses: softprops/action-gh-release@v2
         with:
