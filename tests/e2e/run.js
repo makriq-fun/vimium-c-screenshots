@@ -229,6 +229,12 @@ async function testElement(page) {
     if (state && state !== "capturing:element") { console.log("   capture state:", state); break; }
     await delay(100);
   }
+  const workers = page.context().serviceWorkers();
+  if (workers[0]) {
+    console.log("   sw debug:", await workers[0].evaluate(() => globalThis.__vcsDebug || []));
+  } else {
+    console.log("   no service worker");
+  }
   const image = await waitForClipboardImage(page, null);
   const scale = image.width / info.w;
   near(image.width, info.w * info.dpr, 3, "element width");

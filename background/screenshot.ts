@@ -44,6 +44,12 @@ interface ShotCanvas {
 interface CaptureState { aborted: boolean }
 
 const activeCaptures = new Map<number, CaptureState>()
+const debugLog: string[] = ["loaded"]
+;(globalThis as unknown as { __vcsDebug?: string[] }).__vcsDebug = debugLog
+const debug = (text: string): void => {
+  debugLog.push(text)
+  if (debugLog.length > 50) { debugLog.shift() }
+}
 
 interface FfRuntime {
   onMessage: { addListener(cb: (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender)
@@ -255,6 +261,8 @@ const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
 const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender):
     Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
+  debug("msg t=" + msg.t + " m=" + msg.m + " vc=" + msg.vc + " tab=" + (sender.tab && sender.tab.id)
+      + " frame=" + sender.frameId)
   console.warn("[vimium-c-screenshots] message:", msg.t, "frame", sender.frameId)
   const tab = sender.tab
   if (msg.t === "abort") {
@@ -270,9 +278,11 @@ const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSend
   activeCaptures.set(tab.id, state)
   return runCapture(tab, msg, state).then(result => {
     activeCaptures.delete(tab.id!)
+    debug("result ok=" + result.ok + " e=" + result.e + " w=" + result.w + " h=" + result.h)
     return result
   }, err => {
     activeCaptures.delete(tab.id!)
+    debug("result threw: " + errorText(err))
     return fail(errorText(err))
   })
 }
