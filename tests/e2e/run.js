@@ -94,45 +94,6 @@ async function launch(origin, deviceScaleFactor = 1) {
     console.log("wmctrl windows:", windows.trim());
   } catch (err) { console.log("wmctrl failed:", err.message); }
   await page.bringToFront();
-  await page.evaluate(() => {
-    globalThis.__vcsPaste = undefined;
-    document.addEventListener("paste", async (event) => {
-      event.preventDefault();
-      const items = Array.from(event.clipboardData ? event.clipboardData.items : []);
-      const item = items.find((i) => i.type === "image/png");
-      if (!item) { globalThis.__vcsPaste = { empty: true, types: items.map((i) => i.type) }; return; }
-      const file = item.getAsFile();
-      if (!file) { globalThis.__vcsPaste = { empty: true, types: items.map((i) => i.type) }; return; }
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(bitmap, 0, 0);
-      const pixel = (x, y) => Array.from(ctx.getImageData(Math.max(0, Math.min(bitmap.width - 1, Math.round(x))),
-          Math.max(0, Math.min(bitmap.height - 1, Math.round(y))), 1, 1).data);
-      const redRows = [];
-      const step = Math.max(1, Math.round(bitmap.height / 400));
-      for (let y = 0; y < Math.min(bitmap.height, 240); y += step) {
-        let red = 0;
-        for (let x = 0; x < Math.min(bitmap.width, 600); x += Math.max(1, Math.round(bitmap.width / 120))) {
-          const d = pixel(x, y);
-          if (d[0] > 180 && d[1] < 90 && d[2] < 90) { red++; }
-        }
-        if (red > 20) { redRows.push(y); }
-      }
-      globalThis.__vcsPaste = {
-        width: bitmap.width,
-        height: bitmap.height,
-        redRows,
-        topLeft: pixel(12, 12),
-        topBand: pixel(20, 14),
-        middle: pixel(bitmap.width - 24, bitmap.height / 2),
-        bottom: pixel(bitmap.width / 2, bitmap.height - 16),
-        rightBottom: pixel(bitmap.width - 20, bitmap.height - 20),
-      };
-    }, true);
-  });
   await page.bringToFront();
   return { context, page, userDataDir };
 }
@@ -223,41 +184,26 @@ function readClipboardImage() {
   };
 }
 
-async function pasteClipboardImage(page) {
-  await page.evaluate(() => {
-    globalThis.__vcsPaste = undefined;
-    let box = document.getElementById("__vcs_pastebox");
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "__vcs_pastebox";
-      box.contentEditable = "true";
-      box.setAttribute("style", "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none");
-      document.body.appendChild(box);
-    }
-    box.focus();
-  });
-  await page.keyboard.press("Control+V");
-  for (let i = 0; i < 10; i++) {
-    const pasted = await page.evaluate(() => globalThis.__vcsPaste);
-    if (pasted !== undefined) { return pasted && !pasted.empty ? pasted : null; }
-    await delay(100);
-  }
-  return null;
-}
-
 async function waitForClipboardImage(page, previous) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 200; i++) {
     const image = readClipboardImage();
     if (image && (!previous || image.width !== previous.width || image.height !== previous.height)) {
       return image;
     }
-    const pasted = await pasteClipboardImage(page);
-    if (pasted && (!previous || pasted.width !== previous.width || pasted.height !== previous.height)) {
-      return pasted;
-    }
     await delay(100);
   }
   throw new Error("the extension did not copy an image to the clipboard; targets: " + clipboardTargets());
+}
+
+async function resetFocus(page) {
+  await page.evaluate(() => {
+    const box = document.getElementById("__vcs_pastebox");
+    if (box) { box.remove(); }
+    const active = document.activeElement;
+    if (active && active !== document.body && active.blur) { active.blur(); }
+  }).catch(() => {});
+  await page.bringToFront().catch(() => {});
+  await page.keyboard.press("Escape").catch(() => {});
 }
 
 const near = (actual, expected, tolerance, label) => {
@@ -291,6 +237,7 @@ async function elementInfo(page) {
 }
 
 async function testElement(page) {
+  await resetFocus(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   console.log("   page clipboard test:", await page.evaluate(async () => {
     try {
@@ -346,6 +293,7 @@ async function testElement(page) {
 }
 
 async function testViewport(page) {
+  await resetFocus(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   await clearClipboard(page);
   await page.keyboard.press("s");
@@ -360,6 +308,7 @@ async function testViewport(page) {
 }
 
 async function testFullPage(page) {
+  await resetFocus(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.bringToFront();
   await page.evaluate(() => document.documentElement.removeAttribute("data-vcs-state"));
@@ -385,6 +334,7 @@ async function testFullPage(page) {
 }
 
 async function testEscape(page) {
+  await resetFocus(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   await clearClipboard(page);
   await pressSequence(page, ["s", "s"], 70);
@@ -407,6 +357,7 @@ async function testEscape(page) {
 }
 
 async function testNormalMode(page) {
+  await resetFocus(page);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.keyboard.press("s");
   await delay(80);
