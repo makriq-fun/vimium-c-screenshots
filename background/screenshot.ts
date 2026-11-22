@@ -7,8 +7,8 @@
  */
 import { browser_, Tabs_ } from "./browser"
 import { handleImageUrl } from "./frame_commands"
-import { calcOutputSize, planTiles, ShotRect, ShotTile } from "../lib/screenshot_geometry"
-import { OnFirefox } from "../lib/utils"
+import { calcOutputSize, planTiles, ShotRect, ShotTile } from "./screenshot_geometry"
+import { OnFirefox } from "./store"
 
 /** Firefox's canvas limit is 32767x32767; keep a conservative pixel budget to avoid OOM. */
 const MAX_SIDE = 32767

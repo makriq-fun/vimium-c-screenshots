@@ -178,7 +178,7 @@ npx web-ext sign --source-dir dist --channel unlisted \
   скрытие фиксированных элементов, сообщения с background.
 - `background/screenshot.ts` — пошаговый захват через `tabs.captureVisibleTab`, сшивка на
   canvas/OffscreenCanvas, проверка лимитов и копирование PNG в буфер обмена.
-- `lib/screenshot_geometry.ts` — чистый планировщик кадров (покрыт тестами).
+- `background/screenshot_geometry.ts` — чистый планировщик кадров (покрыт тестами).
 - `content/key_handler.ts`, `background/key_mappings.ts` — поддержка ключа, который одновременно
   является командой и префиксом (для пользовательских раскладок с `s`).
 - Команда зарегистрирована как `kFgCmd.screenshot`; имена команд доступны в `map`/`run`, справке
@@ -199,7 +199,7 @@ git merge upstream/master
 Конфликты ожидаемы в списках команд (`typings/messages.d.ts`,
 `background/key_mappings.ts`, `content/commands.ts`), в `manifest.json`/`manifest.v2.json` и в
 workflow-файлах. Файлы `content/screenshot.ts`, `background/screenshot.ts`,
-`lib/screenshot_geometry.ts` и `tests/` добавлены этим форком; при слиянии их не нужно
+`background/screenshot_geometry.ts` и `tests/` добавлены этим форком; при слиянии их не нужно
 перезаписывать.
 
 ## Лицензия и авторство

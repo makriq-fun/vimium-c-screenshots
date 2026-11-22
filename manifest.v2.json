@@ -23,6 +23,7 @@
       "background/filter_tabs.js",
       "background/open_urls.js",
       "background/frame_commands.js",
+      "background/screenshot_geometry.js",
       "background/screenshot.js",
       "background/tab_commands.js",
       "background/all_commands.js",
