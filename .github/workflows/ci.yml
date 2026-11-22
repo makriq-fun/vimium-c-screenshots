@@ -123,7 +123,7 @@ jobs:
         run: |
           XPI=$(ls vimium_c-*-firefox-*.zip | head -1)
           export EXT_XPI="$XPI"
-          export MOZ_ENABLE_WAYLAND=0 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 MOZ_WEBRENDER=0
+          export MOZ_ENABLE_WAYLAND=0 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 MOZ_WEBRENDER=0 FIREFOX_HEADLESS=1
           xvfb-run -a --server-args="-screen 0 1600x1200x24" \
             sh -c 'openbox >/dev/null 2>&1 & sleep 1; exec python3 tests/firefox/test_firefox.py' 
       - name: Upload Firefox failure artifacts

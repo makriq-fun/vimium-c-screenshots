@@ -9,6 +9,7 @@ Run from the repository root after `npm run mv2-ff`:
 The extension is installed as a temporary add-on through Marionette (Selenium), the browser is
 driven with real key events, and the resulting PNG is read back from the X11 clipboard with xclip.
 """
+import base64
 import glob
 import io
 import os
@@ -77,7 +78,42 @@ def clipboard_png():
     return data if proc.returncode == 0 and data[:8] == b"\x89PNG\r\n\x1a\n" else None
 
 
-def clipboard_clear():
+def page_clipboard_png(driver):
+    driver.set_script_timeout(30)
+    result = driver.execute_async_script("""
+      const done = arguments[arguments.length - 1];
+      (async () => {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            if (!item.types.includes("image/png")) { continue; }
+            const blob = await item.getType("image/png");
+            const reader = new FileReader();
+            reader.onload = () => done(reader.result);
+            reader.onerror = () => done(null);
+            reader.readAsDataURL(blob);
+            return;
+          }
+          done(null);
+        } catch (err) { done("ERR " + err); }
+      })();
+    """)
+    if isinstance(result, str) and result.startswith("data:image/png;base64,"):
+        return base64.b64decode(result.split(",", 1)[1])
+    if result and str(result).startswith("ERR"):
+        print("   page clipboard read failed:", result)
+    return None
+
+
+def clipboard_clear(driver):
+    try:
+        driver.execute_script("navigator.clipboard.writeText(' ')")
+    except Exception:
+        pass
+    clipboard_clear_x11()
+
+
+def clipboard_clear_x11():
     try:
         subprocess.run(["xclip", "-selection", "clipboard", "-i"], input=b" ",
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
@@ -85,10 +121,10 @@ def clipboard_clear():
         pass
 
 
-def wait_clipboard(previous=None, timeout=30):
+def wait_clipboard(driver, previous=None, timeout=30):
     deadline = time.time() + timeout
     while time.time() < deadline:
-        data = clipboard_png()
+        data = page_clipboard_png(driver) or clipboard_png()
         if data and (previous is None or data != previous):
             return data
         time.sleep(0.1)
@@ -195,7 +231,7 @@ def element_rect(driver):
 
 def test_element(driver):
     driver.execute_script("window.scrollTo(0, 0)")
-    clipboard_clear()
+    clipboard_clear(driver)
     clear_state(driver)
     press(driver, "ss")
     wait_ui(driver, "markers")
@@ -214,7 +250,7 @@ def test_element(driver):
     press(driver, "s")
     state = wait_state(driver)
     assert state.startswith("ok:"), state
-    data = wait_clipboard()
+    data = wait_clipboard(driver)
     (width, height), image = image_size(data)
     near(width, rect[2], 3, "element width")
     near(height, rect[3], 3, "element height")
@@ -228,12 +264,12 @@ def test_element(driver):
 
 def test_viewport(driver):
     driver.execute_script("window.scrollTo(0, 0)")
-    clipboard_clear()
+    clipboard_clear(driver)
     clear_state(driver)
     press(driver, "sv")
     state = wait_state(driver)
     assert state.startswith("ok:"), state
-    data = wait_clipboard()
+    data = wait_clipboard(driver)
     (width, height), image = image_size(data)
     rect = element_rect(driver)
     near(width, rect[6], 40, "viewport width")
@@ -244,12 +280,12 @@ def test_viewport(driver):
 
 def test_full_page(driver):
     driver.execute_script("window.scrollTo(0, 0)")
-    clipboard_clear()
+    clipboard_clear(driver)
     clear_state(driver)
     press(driver, "sa")
     state = wait_state(driver)
     assert state.startswith("ok:"), state
-    data = wait_clipboard()
+    data = wait_clipboard(driver)
     (width, height), image = image_size(data)
     rect = element_rect(driver)
     near(width, rect[4], 5, "full page width")
@@ -265,13 +301,13 @@ def test_full_page(driver):
 
 def test_escape(driver):
     driver.execute_script("window.scrollTo(0, 0)")
-    clipboard_clear()
+    clipboard_clear(driver)
     press(driver, "ss")
     wait_ui(driver, "markers")
     press(driver, "Escape")
     wait_ui(driver, "gone")
     time.sleep(0.5)
-    assert clipboard_png() is None, "Esc during labels must not copy anything"
+    assert (page_clipboard_png(driver) or clipboard_png()) is None, "Esc during labels must not copy anything"
 
     press(driver, "ss")
     wait_ui(driver, "markers")
@@ -282,7 +318,7 @@ def test_escape(driver):
     press(driver, "Escape")
     wait_ui(driver, "gone")
     time.sleep(0.5)
-    assert clipboard_png() is None, "Esc after selecting must not copy anything"
+    assert (page_clipboard_png(driver) or clipboard_png()) is None, "Esc after selecting must not copy anything"
 
 
 def test_normal_mode(driver):
@@ -317,6 +353,9 @@ def main():
     options.set_preference("browser.shell.checkDefaultBrowser", False)
     options.set_preference("browser.startup.page", 0)
     options.set_preference("dom.disable_open_during_load", False)
+    options.set_preference("dom.events.testing.asyncClipboard", True)
+    if os.environ.get("FIREFOX_HEADLESS") == "1":
+        options.add_argument("-headless")
 
     driver = webdriver.Firefox(options=options)
     try:
