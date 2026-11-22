@@ -45,3 +45,5 @@ scripts/*.pem.enc
 scripts/build*.sh
 .env*
 /dist-*
+
+tests/screenshot/.build

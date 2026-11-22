@@ -508,7 +508,6 @@ const populateKeyMap_ = (value: string | null): void => {
       set_mappedKeyTypes_((mappedKeyRegistry_ ? collectMapKeyTypes_(mappedKeyRegistry_) : kMapKey.NONE)
           | (orderedKeys.join().includes(":i>") ? kMapKey.directInsert : kMapKey.NONE))
     }
-    let tmp: ChildKeyFSM | ValidChildKeyAction | undefined
     for (let index = 0; index < orderedKeys.length; index++) {
       const key = orderedKeys[index], arr = key.match(keyRe_)!, last = arr.length - 1
       const key1 = stripKey_(arr[0]), val1 = ref.get(key1) as KeyAction.cmd | ChildKeyFSM | undefined
@@ -517,23 +516,43 @@ const populateKeyMap_ = (value: string | null): void => {
         keyToCommandMap_.delete(key)
         continue;
       } else if (last === 0) {
-        val1 !== undefined && doesLog && logInactive_(key, val1 as ReadonlyChildKeyFSM)
-        ref.set(key1, KeyAction.cmd)
-        continue;
-      } else if (val1 === KeyAction.cmd) {
-        doesLog && logInactive_(arr[0], key)
-        continue
-      }
-      let ref2 = val1 satisfies ChildKeyFSM | undefined as ChildKeyFSM, j = 1
-      val1 || ref.set(key1, ref2 = {})
-      while ((tmp = ref2[stripKey_(arr[j])]) && tmp !== KeyAction.cmd && j < last) { j++; ref2 = tmp; }
-      if (tmp === KeyAction.cmd) {
-        doesLog && logInactive_(arr.slice(0, j + 1), key)
+        if (val1 !== undefined && typeof val1 === "object") {
+          // a command and longer mappings can share one key: run the command after a short timeout
+          val1[GlobalConsts.kFSMPrefixFallback] = KeyAction.cmd
+        } else {
+          val1 === KeyAction.cmd && doesLog && logInactive_(key, "")
+          ref.set(key1, KeyAction.cmd)
+        }
         continue;
       }
-      tmp && doesLog && logInactive_(key, tmp)
-      while (j < last) { ref2 = ref2[stripKey_(arr[j++])] = {} }
-      ref2[stripKey_(arr[last])] = KeyAction.cmd
+      let node: ChildKeyFSM
+      if (val1 === undefined || val1 === KeyAction.cmd) {
+        const next: ChildKeyFSM = {}
+        val1 === KeyAction.cmd && (next[GlobalConsts.kFSMPrefixFallback] = KeyAction.cmd)
+        ref.set(key1, next)
+        node = next
+      } else {
+        node = val1
+      }
+      for (let j = 1; j < last; j++) {
+        const part = stripKey_(arr[j]), cur = node[part]
+        if (cur !== undefined && cur !== KeyAction.cmd) {
+          node = cur
+          continue
+        }
+        const next: ChildKeyFSM = {}
+        cur === KeyAction.cmd && (next[GlobalConsts.kFSMPrefixFallback] = KeyAction.cmd)
+        node[part] = next
+        node = next
+      }
+      const lastKey = stripKey_(arr[last]), existing = node[lastKey]
+      if (existing === undefined) {
+        node[lastKey] = KeyAction.cmd
+      } else if (typeof existing === "object") {
+        existing[GlobalConsts.kFSMPrefixFallback] = KeyAction.cmd
+      } else {
+        doesLog && logInactive_(key, existing)
+      }
     }
     if (!nonNumList_) { /* empty */ }
     else if (!(Build.BTypes & BrowserType.Chrome) || Build.MinCVer >= BrowserVer.BuildMinForOf

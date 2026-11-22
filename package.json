@@ -81,7 +81,8 @@
     "nclean": "bash -c \"gulp clean\"",
     "local": "gulp local",
     "start": "gulp local",
-    "test": "gulp test"
+    "test": "gulp test",
+    "test:geometry": "tsc lib/screenshot_geometry.ts --outDir tests/screenshot/.build --module commonjs --target es2019 --lib es2019 --skipLibCheck && node tests/screenshot/geometry.test.js"
   },
   "version": "2.13.3"
 }

@@ -583,6 +583,10 @@ declare const enum GlobalConsts {
   OmniModeId = "o",
   ForcedMapNum = "c-v-",
   KeySequenceTimeout = 30_000,
+  /** a key which is both a command and a prefix runs its command after this delay, if no continuation key comes */
+  PrefixSequenceTimeout = 400,
+  /** an own property of a key-FSM node that remembers a command at the same node as child mappings */
+  kFSMPrefixFallback = "\u0000",
   ModifierKeyTimeout = 2_900,
   OptionsPage = "pages/options.html",
   kLoadEvent = "VimiumC",

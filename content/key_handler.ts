@@ -1,6 +1,6 @@
 import {
   doc, esc, os_, isEnabled_, isTop, keydownEvents_, set_esc, safer, Stop_, Lower, OnChrome, OnFirefox, timeStamp_, vApi,
-  chromeVer_, deref_, fgCache, OnEdge, set_inherited_
+  chromeVer_, deref_, fgCache, OnEdge, set_inherited_, timeout_, clearTimeout_
 } from "../lib/utils"
 import {
   set_getMappedKey, char_, getMappedKey, isEscape_, getKeyStat_, prevent_, handler_stack, keybody_, SPC, hasShift_ff,
@@ -28,6 +28,26 @@ let keyFSM: KeyFSM
 let currentKeys: string
 let curKeyTimestamp: number
 let nextKeys: KeyFSM | ReadonlyChildKeyFSM & SafeObject | null
+let prefixTimer: ValidTimeoutID = TimerID.None
+let prefixKeys = ""
+
+function clearPrefixTimer_ (): void {
+  if (prefixTimer) { clearTimeout_(prefixTimer); prefixTimer = TimerID.None }
+  prefixKeys = ""
+}
+
+/** a node can be both a command and a prefix: run the command when no continuation key comes in time */
+function startPrefixTimer_ (node: ReadonlyChildKeyFSM): void {
+  clearPrefixTimer_()
+  if (node[GlobalConsts.kFSMPrefixFallback] !== KeyAction.cmd) { return }
+  prefixKeys = currentKeys
+  prefixTimer = timeout_((): void => {
+    const keys = prefixKeys
+    clearPrefixTimer_()
+    esc!(HandlerResult.Nothing)
+    keys && post_({ H: kFgReq.key, k: keys, l: 0, e: getElDesc_(raw_insert_lock) })
+  }, GlobalConsts.PrefixSequenceTimeout)
+}
 
 let maybeEscIsHidden_ff: kKeyCode | 0 = kKeyCode.esc
 let isWaitingAccessKey = false
@@ -39,6 +59,7 @@ let anyClickHandler: MouseEventListener = { handleEvent: noopEventHandler }
 let onPassKey: ((this: void, event?: KeyboardEvent | 0) => void) | null | undefined
 
 set_esc(function<T extends Exclude<HandlerResult, HandlerResult.ExitNormalMode>> (i: T): T {
+  clearPrefixTimer_()
   currentKeys = ""; nextKeys = null; curKeyTimestamp = 0; return i
 })
 
@@ -48,7 +69,7 @@ export {
 }
 export function set_isCmdTriggered (_newTriggerred: kKeyCode): kKeyCode { return isCmdTriggered = _newTriggerred }
 export function set_passKeys (_newPassKeys: typeof passKeys): void { passKeys = _newPassKeys }
-export function set_nextKeys (_newNK: KeyFSM | null): void { nextKeys = _newNK }
+export function set_nextKeys (_newNK: KeyFSM | null): void { nextKeys = _newNK; _newNK || clearPrefixTimer_() }
 export function set_onPassKey (_newOnPassKey: typeof onPassKey): void { onPassKey = _newOnPassKey }
 export function set_isPassKeysReversed (_newPKReversed: boolean): void { isPassKeysReversed = _newPKReversed }
 export function set_keyFSM (_newKeyFSM: KeyFSM): KeyFSM { return keyFSM = _newKeyFSM }
@@ -110,6 +131,15 @@ export const checkKey = ((event: HandlerNS.Event, key: string
   if (j) {
     return nextKeys ? (esc!(HandlerResult.ExitNormalMode), HandlerResult.Prevent) : j;
   }
+  if (nextKeys && prefixKeys && isRepeated_(event)
+      && nextKeys[GlobalConsts.kFSMPrefixFallback] === KeyAction.cmd) {
+    const keys = prefixKeys
+    clearPrefixTimer_()
+    esc!(HandlerResult.Nothing)
+    keys && post_({ H: kFgReq.key, k: keys, l: 0, e: getElDesc_(raw_insert_lock) })
+    return HandlerResult.Prevent
+  }
+  clearPrefixTimer_()
   let key2 = key, isVirtual = key.startsWith("v-") // key may come from `a mode < kModeId.max_not_command`
   if (!nextKeys || !(j = nextKeys[key])) {
     j = isVirtual ? keyFSM[key] || KeyAction.cmd
@@ -143,6 +173,7 @@ export const checkKey = ((event: HandlerNS.Event, key: string
     curKeyTimestamp = timeStamp_(event.e)
     if (j !== KeyAction.count) {
       nextKeys = safer(j)
+      typeof j === "object" && startPrefixTimer_(nextKeys)
       if (isVirtual) {
         replaceOrSuppressMost_(kHandler.onTopNormal, /*#__NOINLINE__*/ checkKeyOnTop)
         hudHide()
