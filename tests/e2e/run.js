@@ -63,7 +63,8 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function launch(origin, deviceScaleFactor = 1) {
   const userDataDir = fs.mkdtempSync("/tmp/vcs-e2e-");
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: false,
+    headless: true,
+    channel: "chromium",
     deviceScaleFactor,
     viewport: { width: 1200, height: 800 },
     acceptDownloads: false,
