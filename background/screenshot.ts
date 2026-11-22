@@ -176,7 +176,7 @@ const copyViaOffscreen = async (blob: Blob): Promise<boolean> => {
   try { url = await blobToDataUrl(blob) } catch (err) { debug("data url failed: " + errorText(err)); return false }
   try {
     browser_.offscreen.createDocument({
-      reasons: ["CLIPBOARD"], url: "/front/offscreen.html", justification: "copy a screenshot",
+      reasons: ["CLIPBOARD"], url: "/front/offscreen_copy.html", justification: "copy a screenshot",
     }, () => {
       const err = (chrome.runtime as unknown as { lastError?: { message?: string } }).lastError
       debug("offscreen create: " + (err ? err.message : "ok"))
