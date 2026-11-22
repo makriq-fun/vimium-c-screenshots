@@ -173,5 +173,8 @@
   "zoom": "Zoomer/Dézoomer l'onglet courant",
   "zoomIn": "Zoomer l'onglet courant",
   "zoomOut": "Dézoomer l'onglet courant",
-  "zoomReset": "Réinitialiser le niveau de zoom"
+  "zoomReset": "Réinitialiser le niveau de zoom",
+  "screenShotElement": "Capturer l'élément sélectionné par une étiquette",
+  "screenShotFullPage": "Capturer toute la page",
+  "screenShotViewport": "Capturer la zone visible"
 }

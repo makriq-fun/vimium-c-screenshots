@@ -179,5 +179,8 @@
   "zoom": "缩放网页",
   "zoomIn": "放大网页",
   "zoomOut": "缩小网页",
-  "zoomReset": "重置网页缩放比例"
+  "zoomReset": "重置网页缩放比例",
+  "screenShotElement": "选择元素并复制其截图",
+  "screenShotFullPage": "复制整个页面的截图",
+  "screenShotViewport": "复制当前可见区域的截图"
 }

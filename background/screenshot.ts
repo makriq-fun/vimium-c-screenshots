@@ -5,7 +5,7 @@
  * page tile by tile, calls `tabs.captureVisibleTab`, stitches the tiles on a canvas and copies the
  * result to the clipboard. Images never leave the browser.
  */
-import { Tabs_ } from "./browser"
+import { browser_, Tabs_ } from "./browser"
 import { handleImageUrl } from "./frame_commands"
 import { calcOutputSize, planTiles, ShotRect, ShotTile } from "../lib/screenshot_geometry"
 
@@ -107,15 +107,30 @@ const sendToTab = <T extends ScreenshotNS.Message>(tabId: number, msg: Screensho
     } catch { finish(null) }
   })
 
-const copyImageUrl = (url: string): Promise<boolean> => new Promise<boolean>(resolve => {
-  handleImageUrl(url as `data:${string}`, null, kTeeTask.CopyImage, (ok: BOOL | boolean) => {
-    resolve(!!ok)
-  }, "screenshot.png", "")
-})
+const copyPngData = (data: ArrayBuffer): Promise<boolean> =>
+  browser_.clipboard && browser_.clipboard.setImageData
+    ? browser_.clipboard.setImageData(data, "png").then(() => true, () => false)
+    : Promise.resolve(false)
 
-const copyImageBlob = (blob: Blob): Promise<boolean> => new Promise<boolean>(resolve => {
-  handleImageUrl("", blob, kTeeTask.CopyImage, (ok: BOOL | boolean) => { resolve(!!ok) }, "screenshot.png", "")
-})
+const copyImageUrl = (url: string): Promise<boolean> => {
+  if (OnFirefox) {
+    return fetch(url as `data:${string}`).then(res => res.arrayBuffer()).then(copyPngData, () => false)
+  }
+  return new Promise<boolean>(resolve => {
+    handleImageUrl(url as `data:${string}`, null, kTeeTask.CopyImage, (ok: BOOL | boolean) => {
+      resolve(!!ok)
+    }, "screenshot.png", "")
+  })
+}
+
+const copyImageBlob = (blob: Blob): Promise<boolean> => {
+  if (OnFirefox) {
+    return blob.arrayBuffer().then(copyPngData, () => false)
+  }
+  return new Promise<boolean>(resolve => {
+    handleImageUrl("", blob, kTeeTask.CopyImage, (ok: BOOL | boolean) => { resolve(!!ok) }, "screenshot.png", "")
+  })
+}
 
 const imageSize = (url: string): Promise<{ w: number; h: number } | null> =>
   fetch(url as `data:${string}`).then(res => res.blob()).then(decodeBlob).then(bitmap => {

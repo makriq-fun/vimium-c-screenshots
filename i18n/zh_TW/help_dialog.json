@@ -179,5 +179,8 @@
   "zoom": "縮放網頁",
   "zoomIn": "放大網頁",
   "zoomOut": "縮小網頁",
-  "zoomReset": "重置網頁縮放比例"
+  "zoomReset": "重置網頁縮放比例",
+  "screenShotElement": "選擇元素並複製其截圖",
+  "screenShotFullPage": "複製整個頁面的截圖",
+  "screenShotViewport": "複製目前可見區域的截圖"
 }

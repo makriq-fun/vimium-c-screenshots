@@ -172,5 +172,8 @@
   "zoom": "Nastaviť priblíženie aktuálnej karty",
   "zoomIn": "Priblížiť aktuálnu kartu",
   "zoomOut": "Oddialiť aktuálnu kartu",
-  "zoomReset": "Resetovať úroveň priblíženia"
+  "zoomReset": "Resetovať úroveň priblíženia",
+  "screenShotElement": "Odfotiť prvok vybraný pomocou štítku",
+  "screenShotFullPage": "Odfotiť celú stránku",
+  "screenShotViewport": "Odfotiť viditeľnú oblasť"
 }
