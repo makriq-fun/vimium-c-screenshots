@@ -16,10 +16,16 @@
       && chrome.runtime.onMessage) {
     chrome.runtime.onMessage.addListener((msg: any, _sender: chrome.runtime.MessageSender
         , sendResponse: (res: { ok: boolean }) => void): boolean | void => {
-      if (!msg || msg.target !== "vcs-copy-image" || typeof msg.u !== "string") { return }
+      if (!msg || msg.target === "vcs-offscreen-ping") { sendResponse({ ok: true }); return }
+      if (msg.target !== "vcs-copy-image" || typeof msg.u !== "string") { return }
+      console.warn("[vimium-c-screenshots] tee: copy image request")
       fetch_(msg.u).then(res => res.blob()).then(blob => {
         return clipboard.write!([new ClipboardItem({ "image/png": blob })])
-      }).then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }))
+      }).then(() => { console.warn("[vimium-c-screenshots] tee: clipboard ok"); sendResponse({ ok: true }) },
+          (err: unknown) => {
+            console.warn("[vimium-c-screenshots] tee: clipboard failed", "" + err)
+            sendResponse({ ok: false })
+          })
       return true
     })
   }

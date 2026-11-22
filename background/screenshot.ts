@@ -153,31 +153,42 @@ const blobToDataUrl = async (blob: Blob): Promise<string> => {
   return "data:image/png;base64," + btoa(binary)
 }
 
+const offscreenRequest = (message: object): Promise<boolean> => new Promise(resolve => {
+  let finished = false
+  const finish = (ok: boolean): void => {
+    if (finished) { return }
+    finished = true
+    clearTimeout(timer)
+    resolve(ok)
+  }
+  const timer = setTimeout(() => { finish(false) }, 6000)
+  try {
+    chrome.runtime.sendMessage(message, (res: { ok?: boolean } | null) => { finish(!!res && res.ok === true) })
+  } catch { finish(false) }
+})
+
 const copyViaOffscreen = async (blob: Blob): Promise<boolean> => {
-  if (!(Build.BTypes & BrowserType.Chrome) || !browser_.offscreen || blob.size > 24_000_000) { return false }
+  if (!(Build.BTypes & BrowserType.Chrome) || !browser_.offscreen || blob.size > 24_000_000) {
+    debug("offscreen unavailable")
+    return false
+  }
   let url: string
-  try { url = await blobToDataUrl(blob) } catch { return false }
+  try { url = await blobToDataUrl(blob) } catch (err) { debug("data url failed: " + errorText(err)); return false }
   try {
     browser_.offscreen.createDocument({
       reasons: ["CLIPBOARD"], url: "/front/offscreen.html", justification: "copy a screenshot",
-    }, () => { /* an already open offscreen document is fine */ })
-  } catch { /* already open */ }
-  await delay(120)
-  return new Promise<boolean>(resolve => {
-    let finished = false
-    const finish = (ok: boolean): void => {
-      if (finished) { return }
-      finished = true
-      clearTimeout(timer)
-      resolve(ok)
-    }
-    const timer = setTimeout(() => { finish(false) }, 6000)
-    try {
-      chrome.runtime.sendMessage({ target: "vcs-copy-image", u: url }, (res: { ok?: boolean } | null) => {
-        finish(!!res && res.ok === true)
-      })
-    } catch { finish(false) }
-  })
+    }, () => {
+      const err = (chrome.runtime as unknown as { lastError?: { message?: string } }).lastError
+      debug("offscreen create: " + (err ? err.message : "ok"))
+    })
+  } catch (err) { debug("offscreen create threw: " + errorText(err)) }
+  for (let i = 0; i < 30; i++) {
+    if (await offscreenRequest({ target: "vcs-offscreen-ping" })) { break }
+    await delay(100)
+  }
+  const ok = await offscreenRequest({ target: "vcs-copy-image", u: url })
+  debug("offscreen copy response " + ok)
+  return ok
 }
 
 const copyImageBlob = (blob: Blob): Promise<boolean> => {

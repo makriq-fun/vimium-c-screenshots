@@ -146,7 +146,16 @@ def wait_state(driver, timeout=40):
 
 def image_size(data):
     image = Image.open(io.BytesIO(data))
-    return image.size, image.convert("RGB")
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+    size = image.size
+    print("   image:", size, image.mode, image.getpixel((20, 14)), image.getpixel((size[0] // 2, size[1] // 2)))
+    os.makedirs(os.path.join("tests", "firefox", "out"), exist_ok=True)
+    path = os.path.join("tests", "firefox", "out", "last.png")
+    with open(path, "wb") as f:
+        f.write(data)
+    flat = Image.alpha_composite(Image.new("RGBA", size, (255, 255, 255, 255)), image).convert("RGB")
+    return size, flat
 
 
 def near(actual, expected, tolerance, label):
@@ -319,6 +328,9 @@ def main():
             lambda d: d.execute_script("return document.readyState") == "complete")
         driver.find_element(By.TAG_NAME, "body").click()
         time.sleep(0.5)
+        os.makedirs(os.path.join("tests", "firefox", "out"), exist_ok=True)
+        driver.save_screenshot(os.path.join("tests", "firefox", "out", "page.png"))
+        print("   page screenshot saved")
 
         print("1. element screenshot")
         test_element(driver)
