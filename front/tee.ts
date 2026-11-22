@@ -15,6 +15,7 @@
     image.onload = (): void => {
       try {
         const body = document.body || document.documentElement
+        if (!body) { resolve(false); return }
         body.appendChild(image)
         const range = document.createRange()
         range.selectNode(image)
