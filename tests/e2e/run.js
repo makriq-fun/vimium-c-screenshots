@@ -166,7 +166,7 @@ async function clearClipboard(page) {
 function clipboardTargets() {
   try {
     return execFileSync("xclip", ["-selection", "clipboard", "-t", "TARGETS", "-o"],
-        { encoding: "utf8", timeout: 5000 }).trim().replace(/\s+/g, " ");
+        { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim().replace(/\s+/g, " ");
   } catch (err) {
     return "xclip unavailable: " + (err.message || err);
   }
@@ -176,7 +176,7 @@ function readClipboardImage() {
   let buffer;
   try {
     buffer = execFileSync("xclip", ["-selection", "clipboard", "-t", "image/png", "-o"],
-        { timeout: 8000, maxBuffer: 64 * 1024 * 1024 });
+        { timeout: 8000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
   } catch { return null; }
   if (!buffer || buffer.length < 24 || buffer[0] !== 0x89 || buffer.toString("ascii", 1, 4) !== "PNG") {
     return null;
@@ -285,6 +285,16 @@ async function testElement(page) {
     try {
       await navigator.clipboard.writeText("clip-test");
       return await navigator.clipboard.readText();
+    } catch (err) { return err.name + ": " + err.message; }
+  }), "targets:", clipboardTargets());
+  console.log("   page image write:", await page.evaluate(async () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 10; canvas.height = 10;
+      canvas.getContext("2d").fillRect(0, 0, 10, 10);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      return "ok";
     } catch (err) { return err.name + ": " + err.message; }
   }), "targets:", clipboardTargets());
   await clearClipboard(page);
