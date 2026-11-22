@@ -694,8 +694,22 @@ export const activate = (options: CmdOptions[kFgCmd.screenshot]): void => {
   }
 }
 
+const copyImageInPage = async (url: string): Promise<boolean> => {
+  try {
+    const fetchPage = (window as unknown as { fetch: (u: string) => Promise<{ blob(): Promise<Blob> }> }).fetch
+    const blob = await fetchPage(url).blob()
+    const clipboard = navigator.clipboard
+    if (!clipboard || !clipboard.write || typeof ClipboardItem !== "function") { return false }
+    await clipboard.write!([new ClipboardItem({ "image/png": blob })])
+    return true
+  } catch { return false }
+}
+
 const onExtensionMessage = (msg: ScreenshotNS.Message): Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
+  if (msg.t === "copyImage" && typeof msg.u === "string") {
+    return copyImageInPage(msg.u).then(ok => ({ vc: "vcs", t: "copyImage", ok } as ScreenshotNS.Message))
+  }
   if (msg.t === "begin") {
     return beginCapture(msg.m || "full").then(res => res, err => {
       return { vc: "vcs", t: "begin", ok: false, e: errorText(err) } as ScreenshotNS.Message

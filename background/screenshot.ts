@@ -90,9 +90,16 @@ const makeCanvas = (width: number, height: number): ShotCanvas | null => {
   return null
 }
 
-const captureVisible = (windowId: number): Promise<string | null> => new Promise(resolve => {
+const captureVisible = (windowId: number, tabId: number): Promise<string | null> => new Promise(resolve => {
   try {
     if (OnFirefox) {
+      const captureTab = (Tabs_ as unknown as {
+        captureTab?: (tabId: number, options: { format: string }) => Promise<string>
+      }).captureTab
+      if (captureTab) {
+        captureTab.call(Tabs_, tabId, { format: "png" }).then(url => resolve(url || null), () => resolve(null))
+        return
+      }
       const capture = Tabs_.captureVisibleTab as unknown as
           ((options: { format: string }) => Promise<string>)
       capture.call(Tabs_, { format: "png" }).then(url => resolve(url || null), () => resolve(null))
@@ -149,17 +156,33 @@ const copyImageUrl = (url: string): Promise<boolean> => {
   })
 }
 
-const copyImageBlob = (blob: Blob): Promise<boolean> => {
+const blobToDataUrl = async (blob: Blob): Promise<string> => {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let binary = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    const end = Math.min(bytes.length, i + 0x8000)
+    for (let j = i; j < end; j++) { binary += String.fromCharCode(bytes[j]) }
+  }
+  return "data:image/png;base64," + btoa(binary)
+}
+
+const copyImageBlob = (blob: Blob, tabId: number): Promise<boolean> => {
   debug("copy blob " + blob.size)
   if (OnFirefox) {
     return blob.arrayBuffer().then(copyPngData, () => false).then(ok => { debug("copy ff " + ok); return ok })
   }
-  return new Promise<boolean>(resolve => {
-    handleImageUrl("", blob, kTeeTask.CopyImage, (copied: BOOL | boolean) => {
-      debug("copy chrome " + !!copied)
-      resolve(!!copied)
-    }, "screenshot.png", "")
-  })
+  return blobToDataUrl(blob).then(url => sendToTab<ScreenshotNS.Message>(tabId, {
+    vc: "vcs", t: "copyImage", u: url,
+  })).then(res => {
+    debug("copy page " + !!res)
+    if (res && res.ok) { return true }
+    return new Promise<boolean>(resolve => {
+      handleImageUrl("", blob, kTeeTask.CopyImage, (copied: BOOL | boolean) => {
+        debug("copy chrome " + !!copied)
+        resolve(!!copied)
+      }, "screenshot.png", "")
+    })
+  }, () => false)
 }
 
 const imageSize = (url: string): Promise<{ w: number; h: number } | null> =>
@@ -179,7 +202,7 @@ const captureViewport = async (tabId: number, windowId: number): Promise<Screens
   const begin = await sendToTab(tabId, { vc: "vcs", t: "begin", m: "viewport" })
   if (!begin || !begin.ok) { return fail(begin && begin.e || "Cannot access the page") }
   await delay(120)
-  const url = await captureVisible(windowId)
+  const url = await captureVisible(windowId, tabId)
   if (!url) { return fail("The browser refused to capture this tab") }
   const size = await imageSize(url)
   if (!size) { return fail("The captured image could not be decoded") }
@@ -220,7 +243,7 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
       }
       checkAborted(state)
       if (i > 0 && Build.BTypes & BrowserType.Chrome) { await delay(CAPTURE_DELAY) }
-      const url = await captureVisible(windowId)
+      const url = await captureVisible(windowId, tabId)
       if (!url) { throw new Error("The browser refused to capture this tab") }
       const bitmap = await decodeBlob(await fetch(url as `data:${string}`).then(res => res.blob()))
       try {
@@ -249,7 +272,7 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
     if (!canvas) { throw new Error("The screenshot is empty") }
     const blob = await canvas.toBlob()
     if (!blob) { throw new Error("The screenshot could not be encoded as PNG") }
-    const copied = await copyImageBlob(blob)
+    const copied = await copyImageBlob(blob, tabId)
     if (!copied) { throw new Error("Failed to copy the screenshot to the clipboard") }
     return { vc: "vcs", t: "capture", ok: true, w: outW, h: outH }
   } catch (err) {

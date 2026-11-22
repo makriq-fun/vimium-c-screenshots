@@ -945,7 +945,7 @@ declare namespace ScreenshotNS {
     /** the target element is position:fixed/sticky and must be captured without page scrolling */ fx?: true
   }
 
-  type Kind = "capture" | "abort" | "begin" | "tile" | "end"
+  type Kind = "capture" | "abort" | "begin" | "tile" | "end" | "copyImage"
 
   interface Message {
     /** message namespace */ vc: "vcs"
@@ -959,6 +959,7 @@ declare namespace ScreenshotNS {
     /** result image size in device pixels */ w?: number
     h?: number
     /** error text */ e?: string
+    /** PNG data URL for the content-side clipboard fallback */ u?: string
     /** page state */ s?: Metrics
   }
 }
