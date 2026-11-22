@@ -63,8 +63,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function launch(origin, deviceScaleFactor = 1) {
   const userDataDir = fs.mkdtempSync("/tmp/vcs-e2e-");
   const context = await chromium.launchPersistentContext(userDataDir, {
-    headless: true,
-    channel: "chromium",
+    headless: false,
     deviceScaleFactor,
     viewport: { width: 1200, height: 800 },
     acceptDownloads: false,
@@ -73,6 +72,10 @@ async function launch(origin, deviceScaleFactor = 1) {
       `--load-extension=${EXT_PATH}`,
       "--no-sandbox",
       "--disable-dev-shm-usage",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-renderer-backgrounding",
+      "--disable-background-timer-throttling",
+      "--force-color-profile=srgb",
     ],
   });
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
@@ -84,6 +87,13 @@ async function launch(origin, deviceScaleFactor = 1) {
   });
   page.on("pageerror", (err) => console.log("[pageerror]", err && err.message || err));
   await page.goto(origin + "/?vcs-test=1", { waitUntil: "load" });
+  try {
+    const windows = execFileSync("wmctrl", ["-l"], { encoding: "utf8" });
+    const line = windows.split("\n").find((item) => /Chromium|Chrome|Screenshot test/.test(item));
+    if (line) { execFileSync("wmctrl", ["-i", "-a", line.trim().split(/\s+/)[0]]); }
+    console.log("wmctrl windows:", windows.trim());
+  } catch (err) { console.log("wmctrl failed:", err.message); }
+  await page.bringToFront();
   await page.evaluate(() => {
     globalThis.__vcsPaste = undefined;
     document.addEventListener("paste", async (event) => {

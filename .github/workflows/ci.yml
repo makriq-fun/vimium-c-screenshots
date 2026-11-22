@@ -116,14 +116,14 @@ jobs:
           tar -xf /tmp/firefox.tar.xz -C /tmp
           echo "FIREFOX_BIN=/tmp/firefox/firefox" >> "$GITHUB_ENV"
           sudo apt-get update
-          sudo apt-get install -y xvfb xclip openbox
+          sudo apt-get install -y xvfb xclip openbox wmctrl
           python3 -m pip install --upgrade pip
           python3 -m pip install selenium pillow
       - name: Run Firefox screenshot E2E tests
         run: |
           XPI=$(ls vimium_c-*-firefox-*.zip | head -1)
           export EXT_XPI="$XPI"
-          export MOZ_ENABLE_WAYLAND=0 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 MOZ_WEBRENDER=0 FIREFOX_HEADLESS=1
+          export MOZ_ENABLE_WAYLAND=0 GDK_BACKEND=x11 LIBGL_ALWAYS_SOFTWARE=1 MOZ_WEBRENDER=0 FIREFOX_HEADLESS=0
           xvfb-run -a --server-args="-screen 0 1600x1200x24" \
             sh -c 'openbox >/dev/null 2>&1 & sleep 1; exec python3 tests/firefox/test_firefox.py' 
       - name: Upload Firefox failure artifacts

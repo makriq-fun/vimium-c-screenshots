@@ -372,6 +372,15 @@ def main():
         driver.get(origin)
         print("windows after page:", driver.window_handles, "current:", driver.current_window_handle,
               "size:", driver.get_window_size())
+        try:
+            listing = subprocess.run(["wmctrl", "-l"], capture_output=True, text=True, timeout=10).stdout
+            print("wmctrl windows:", listing.strip())
+            for line in listing.splitlines():
+                if "Mozilla Firefox" in line or "Screenshot" in line:
+                    subprocess.run(["wmctrl", "-i", "-a", line.split()[0]], timeout=10)
+                    break
+        except Exception as exc:
+            print("wmctrl failed:", exc)
         WebDriverWait(driver, 20).until(
             lambda d: d.execute_script("return document.readyState") == "complete")
         driver.find_element(By.TAG_NAME, "body").click()
