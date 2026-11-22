@@ -144,11 +144,15 @@ const copyImageUrl = (url: string): Promise<boolean> => {
 }
 
 const copyImageBlob = (blob: Blob): Promise<boolean> => {
+  debug("copy blob " + blob.size)
   if (OnFirefox) {
-    return blob.arrayBuffer().then(copyPngData, () => false)
+    return blob.arrayBuffer().then(copyPngData, () => false).then(ok => { debug("copy ff " + ok); return ok })
   }
   return new Promise<boolean>(resolve => {
-    handleImageUrl("", blob, kTeeTask.CopyImage, (ok: BOOL | boolean) => { resolve(!!ok) }, "screenshot.png", "")
+    handleImageUrl("", blob, kTeeTask.CopyImage, (ok: BOOL | boolean) => {
+      debug("copy chrome " + !!ok)
+      resolve(!!ok)
+    }, "screenshot.png", "")
   })
 }
 
