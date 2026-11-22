@@ -6,9 +6,9 @@
   "quickNext_s": { "message": "Go one tab right" },
   "reloadTab_s": { "message": "Reload tab" },
   "userCustomized": { "message": "Custom shortcut" },
-  "name": { "message": "Vimium C - All by Keyboard" },
+  "name": { "message": "Vimium C Screenshots" },
   "description": { "message":
-"A keyboard shortcut tool for keyboard-based page navigation and browser tab operations with an advanced omnibar and global shortcuts"
+"Vimium C fork with keyboard-only screenshots of elements, the whole page or the viewport, copied straight to the clipboard"
   },
   "lang1": { "message": "" },
   "i18n": { "message": "" },

@@ -17,6 +17,7 @@ import "./eval_urls"
 import "./open_urls"
 import "./all_commands"
 import "./request_handlers"
+import "./screenshot"
 import "./tools"
 
 const executeShortcutEntry = (cmd: StandardShortcutNames | kShortcutAliases): void => {

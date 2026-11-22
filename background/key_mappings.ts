@@ -638,6 +638,8 @@ const defaultKeyMappings_: string =
   " O "    +AsC_("Vomnibar.activateInNewTab")              + " P "     + AsC_("openCopiedUrlInNewTab")                +
   " T "    +AsC_("Vomnibar.activateTabs")                  + " <a-f> " + AsC_("LinkHints.activateWithQueue")          +
   " yv "   +AsC_("LinkHints.activateSelect")               + " yi "    + AsC_("LinkHints.activateCopyImage")          +
+  " ss "   +AsC_("screenShotElement")                      + " sa "    + AsC_("screenShotFullPage")                    +
+  " sv "   +AsC_("screenShotViewport")                     +
   (Build.NDEBUG ? "" : ` <a-s-f12> ${AsC_("debugBackground")} <s-f12> ${CNameLiterals.focusOptions}`)
 
 export const availableCommands_: { readonly [key in kCName]: CommandsNS.Description } & SafeObject = {
@@ -806,6 +808,9 @@ export const availableCommands_: { readonly [key in kCName]: CommandsNS.Descript
   scrollToRight: [ kFgCmd.scroll, kCxt.fg, 0, { axis: "x", dest: "max" } ],
   scrollToTop: [ kFgCmd.scroll, kCxt.fg, 0, { dest: "min" } ],
   scrollUp: [ kFgCmd.scroll, kCxt.fg, 0, { dir: -1 } ],
+  screenShotElement: [ kFgCmd.screenshot, kCxt.fg, 0, { m: "element" } ],
+  screenShotFullPage: [ kFgCmd.screenshot, kCxt.fg, 0, { m: "full" } ],
+  screenShotViewport: [ kFgCmd.screenshot, kCxt.fg, 0, { m: "viewport" } ],
   searchAs: [ kFgCmd.autoOpen, kCxt.fg, 1, { s: 1, copied: true, selected: true } ],
   searchInAnother: [ kBgCmd.searchInAnother, kCxt.bg, 1 ],
   sendToExtension: [ kBgCmd.sendToExtension, kCxt.bg, 0 ],

@@ -51,6 +51,7 @@ import {
   wrap_enable_bubbles, set_lastBubbledHovered_
 } from "./async_dispatcher"
 import { showFrameMask } from "./request_handlers"
+import { activate as screenshotActivate } from "./screenshot"
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 export const RSC = "readystatechange"
@@ -666,5 +667,6 @@ set_contentCommands_([
       runFallbackKey(options, maxStep ? !1 : 2)
     }
   },
-  /* kFgCmd.goToMark: */ goToMark_
+  /* kFgCmd.goToMark: */ goToMark_,
+  /* kFgCmd.screenshot: */ screenshotActivate
 ])

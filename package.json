@@ -1,8 +1,8 @@
 {
-  "name": "vimium-c",
+  "name": "vimium-c-screenshots",
   "description": "A keyboard shortcut tool for keyboard-based page navigation and browser tab operations with an advanced omnibar and global shortcuts",
-  "author": "gdh1995",
-  "bugs": "https://github.com/gdh1995/vimium-c/issues",
+  "author": "gdh1995 (original Vimium C), makriq-fun fork",
+  "bugs": "https://github.com/makriq-fun/vimium-c-screenshots/issues",
   "private": true,
   "dependencies": {
     "pngjs": "^7.0.0",
@@ -28,7 +28,7 @@
     "node": ">=14",
     "npm": ">=7"
   },
-  "homepage": "https://github.com/gdh1995/vimium-c#readme",
+  "homepage": "https://github.com/makriq-fun/vimium-c-screenshots#readme",
   "license": "Apache-2.0",
   "keywords": [
     "vimium",
@@ -50,7 +50,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gdh1995/vimium-c.git"
+    "url": "https://github.com/makriq-fun/vimium-c-screenshots.git"
   },
   "scripts": {
     "tsc": "node scripts/tsc.js",
@@ -83,5 +83,5 @@
     "start": "gulp local",
     "test": "gulp test"
   },
-  "version": "2.0.0"
+  "version": "2.13.3"
 }

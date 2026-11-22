@@ -253,7 +253,7 @@ declare const enum kBgCmd {
 declare const enum kFgCmd {
   callTee, findMode, linkHints, marks, scroll, visualMode, vomnibar, insertMode, toggle,
   passNextKey, goNext, autoOpen, focusInput, editText, scrollSelect, toggleStyle, dispatchEventCmd, showHelpDialog,
-  framesGoBack, goToMark,
+  framesGoBack, goToMark, screenshot,
   END, ENDS = "END",
 }
 
@@ -528,6 +528,9 @@ interface CmdOptions {
     /** allow */ a: string
     /** timeout */ t: number
     /** current frame's ID */ i: number
+  }
+  [kFgCmd.screenshot]: {
+    /** mode */ m: "element" | "full" | "viewport"
   }
 }
 
@@ -916,4 +919,46 @@ interface ExternalMsgs {
 
 interface BgExports {
   onPagesReq? (req: FgReqWithRes[kFgReq.pages]): Promise<FgRes[kFgReq.pages]>
+}
+
+/** messages between the screenshot feature's content scripts and the background page */
+declare namespace ScreenshotNS {
+  type Mode = "element" | "full" | "viewport"
+
+  interface Rect {
+    /** document coordinates, CSS pixels */ x: number
+    y: number
+    w: number
+    h: number
+  }
+
+  interface Metrics {
+    /** actual scroll position after scrolling */ x: number
+    y: number
+    /** viewport in CSS pixels, including the area which scrollbars would occupy */ vw: number
+    vh: number
+    /** document size in CSS pixels */ dw: number
+    dh: number
+    /** max scroll offsets */ mx: number
+    my: number
+    /** element rectangle, only for `element` mode */ r?: Rect
+    /** the target element is position:fixed/sticky and must be captured without page scrolling */ fx?: true
+  }
+
+  type Kind = "capture" | "abort" | "begin" | "tile" | "end"
+
+  interface Message {
+    /** message namespace */ vc: "vcs"
+    /** kind */ t: Kind
+    /** mode */ m?: Mode
+    /** rectangle, for `capture` in element mode (unused, kept for future use) */ r?: Rect
+    /** tile scroll position */ x?: number
+    y?: number
+    /** hide fixed/sticky elements before this tile */ hf?: boolean
+    /** result */ ok?: boolean
+    /** result image size in device pixels */ w?: number
+    h?: number
+    /** error text */ e?: string
+    /** page state */ s?: Metrics
+  }
 }

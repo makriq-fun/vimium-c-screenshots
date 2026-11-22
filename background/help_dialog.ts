@@ -272,6 +272,9 @@ const commandGroups_: {
     , "toggleViewSource", 1
     , "copyCurrentUrl", "$type=url/title/frame, decoded"
     , "copyCurrentTitle"
+    , "screenShotElement"
+    , "screenShotFullPage"
+    , "screenShotViewport"
     , "switchFocus", "$flash, select=\"\"/all/all-line/start/end"
     , "focusInput", "$keep, select=\"\"/all/all-line/start/end"
     , "LinkHints.activateCopyLinkUrl"

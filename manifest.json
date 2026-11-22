@@ -43,6 +43,7 @@
       "content/hint_filters.js",
       "content/link_actions.js",
       "content/link_hints.js",
+      "content/screenshot.js",
       "content/omni.js",
       "content/mode_find.js",
       "content/visual.js",
@@ -73,7 +74,7 @@
   },
   "default_locale": "en",
   "description": "__MSG_description__",
-  "homepage_url": "https://github.com/gdh1995/vimium-c",
+  "homepage_url": "https://github.com/makriq-fun/vimium-c-screenshots",
   "host_permissions": [
     "<all_urls>"
   ],
@@ -84,7 +85,6 @@
     "48": "icons/icon48.png"
   },
   "incognito": "spanning",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnaZQnkvrHvNlwXPnSfavEya+9sPtVgBR2hWLsNvwdv6+zHRGr/qhqEbtof1v7gDXzpC5+Dr4kOay6aflw5CaFzA1zyVJySAjpb0RkVh774kp9msRpjyb39obSIWAIB76PTwawEAE+K1f26jXDbTC2gEBe4OWk5KW9u9+KoTmeKLHo73ScR1jFcFaOTbrhwHtIDqj00vpIfrSAofpLIq1gP//Og+FoOT4dF107fwlVfDJuu171svuT68wmcKStl6OANxcnXCXE6OWbeZcjMehcQH41wzTtDugmt0o8w+hJ2WVugwWWmGmE8qSiwo9QYZTJW+5EvMcmNZWUmPbTLGkGQIDAQAB",
   "manifest_version": 3,
   "minimum_chrome_version": "121",
   "name": "__MSG_name__",
@@ -123,9 +123,8 @@
     "webNavigation"
   ],
   "short_name": "Vimium C",
-  "update_url": "https://clients2.google.com/service/update2/crx",
-  "version": "2.13.3",
-  "version_name": "2.13.3",
+  "version": "2.13.3.1",
+  "version_name": "2.13.3.1",
   "web_accessible_resources": [ {
     "resources": [ "content/*", "front/vomnibar*", "lib/*" ],
     "matches": [ "<all_urls>", "chrome-extension://*/*" ],
