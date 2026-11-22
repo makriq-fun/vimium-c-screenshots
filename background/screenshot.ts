@@ -93,7 +93,9 @@ const makeCanvas = (width: number, height: number): ShotCanvas | null => {
 const captureVisible = (windowId: number): Promise<string | null> => new Promise(resolve => {
   try {
     if (OnFirefox) {
-      Tabs_.captureVisibleTab({ format: "png" }, (url: string) => { resolve(url || null) })
+      const capture = Tabs_.captureVisibleTab as unknown as
+          ((options: { format: string }) => Promise<string>)
+      capture.call(Tabs_, { format: "png" }).then(url => resolve(url || null), () => resolve(null))
       return
     }
     Tabs_.captureVisibleTab(windowId, { format: "png" }, (url: string) => {

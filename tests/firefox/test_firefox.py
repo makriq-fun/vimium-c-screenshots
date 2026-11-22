@@ -322,6 +322,10 @@ def main():
     try:
         driver.set_window_size(1280, 1000)
         driver.set_window_position(0, 0)
+        try:
+            driver.fullscreen_window()
+        except Exception:
+            pass
         addon = driver.install_addon(os.path.abspath(xpi), temporary=True)
         print("installed", addon)
         driver.get(origin)
