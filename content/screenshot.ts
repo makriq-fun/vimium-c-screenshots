@@ -36,6 +36,13 @@ interface PageState {
 }
 
 const UI_ID = "vimium-c-screenshot-ui"
+const TEST_HOOK = location.search.indexOf("vcs-test=1") >= 0
+
+const setTestState = (text: string): void => {
+  if (TEST_HOOK && document.documentElement) {
+    document.documentElement.setAttribute("data-vcs-state", text)
+  }
+}
 
 interface FfContentRuntime {
   onMessage: { addListener(cb: (msg: ScreenshotNS.Message)
@@ -627,6 +634,7 @@ const requestCapture = (m: ShotMode): Promise<ScreenshotNS.Message | null> => ne
 
 const finishCapture = (result: ScreenshotNS.Message | null): void => {
   const aborted = captureAborted || !!result && result.e === "Screenshot cancelled"
+  setTestState(!result ? "no-response" : result.ok ? "ok:" + result.w + "x" + result.h : "error:" + (result.e || ""))
   captureBusy = false
   captureAborted = false
   captureTarget = null
@@ -652,6 +660,7 @@ const beginElementCapture = async (): Promise<void> => {
   captureTarget = el
   captureBusy = true
   captureAborted = false
+  setTestState("capturing:element")
   hudHide()
   replaceOrSuppressMost_(kHandler.screenshot, onCaptureKey)
   const result = await requestCapture("element")
@@ -665,6 +674,7 @@ const captureWhole = async (m: ShotMode): Promise<void> => {
   mode = 0
   captureBusy = true
   captureAborted = false
+  setTestState("capturing:" + m)
   hudHide()
   replaceOrSuppressMost_(kHandler.screenshot, onCaptureKey)
   const result = await requestCapture(m)

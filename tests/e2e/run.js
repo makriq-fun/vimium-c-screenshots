@@ -80,7 +80,7 @@ async function launch(origin, deviceScaleFactor = 1) {
     }
   });
   page.on("pageerror", (err) => console.log("[pageerror]", err && err.message || err));
-  await page.goto(origin, { waitUntil: "load" });
+  await page.goto(origin + "/?vcs-test=1", { waitUntil: "load" });
   await page.bringToFront();
   return { context, page, userDataDir };
 }
@@ -224,6 +224,11 @@ async function testElement(page) {
   await pressSequence(page, target.label.split(""), 70);
   await waitForUI(page, "selected");
   await page.keyboard.press("s");
+  for (let i = 0; i < 100; i++) {
+    const state = await page.evaluate(() => document.documentElement.getAttribute("data-vcs-state"));
+    if (state && state !== "capturing:element") { console.log("   capture state:", state); break; }
+    await delay(100);
+  }
   const image = await waitForClipboardImage(page, null);
   const scale = image.width / info.w;
   near(image.width, info.w * info.dpr, 3, "element width");

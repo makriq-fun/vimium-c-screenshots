@@ -255,6 +255,7 @@ const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
 const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender):
     Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
+  console.warn("[vimium-c-screenshots] message:", msg.t, "frame", sender.frameId)
   const tab = sender.tab
   if (msg.t === "abort") {
     const active = tab && tab.id != null ? activeCaptures.get(tab.id) : null
