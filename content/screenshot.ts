@@ -359,7 +359,6 @@ const updateMarkers = (): void => {
 }
 
 const selectElement = (entry: LabelEntry): void => {
-  removeHandler_(kHandler.screenshot)
   while (labelBox && labelBox.firstChild) { labelBox.removeChild(labelBox.firstChild) }
   entries = []
   typed = ""
@@ -545,8 +544,9 @@ const beginCapture = async (m: ShotMode): Promise<ScreenshotNS.Message> => {
       }
       const r = el.getBoundingClientRect()
       const fx = fixedTarget(el)
-      if (fx && (r.width > window.innerWidth + 1 || r.height > window.innerHeight + 1)) {
-        throw new Error("This fixed element is larger than the viewport and cannot be captured completely")
+      if (fx && (r.left < -1 || r.top < -1 || r.right > window.innerWidth + 1
+          || r.bottom > window.innerHeight + 1)) {
+        throw new Error("This fixed/sticky element is not fully visible and cannot be captured completely")
       }
       const rect: ShotRect = {
         x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height,
@@ -585,7 +585,9 @@ const onCaptureKey = (event: HandlerNS.Event): HandlerResult => {
   const key = getMappedKey(event, kModeId.Link)
   if (isEscape_(key) && !captureAborted) {
     captureAborted = true
-    try { chrome.runtime.sendMessage({ vc: "vcs", t: "abort" } as ScreenshotNS.Message) } catch { /* ignored */ }
+    try {
+      chrome.runtime.sendMessage({ vc: "vcs", t: "abort" } as ScreenshotNS.Message, () => { /* consume lastError */ })
+    } catch { /* ignored */ }
     hudTip(kTip.raw, 2, "Cancelling the screenshot...")
   }
   return HandlerResult.Prevent
@@ -621,6 +623,7 @@ const finishCapture = (result: ScreenshotNS.Message | null): void => {
   } else if (aborted) {
     hudTip(kTip.raw, 2, "Screenshot cancelled")
   } else {
+    console.warn("[vimium-c-screenshots] capture failed:", result.e || "unknown error")
     hudTip(kTip.raw, 2, "Screenshot failed: " + (result.e || "unknown error"))
   }
 }

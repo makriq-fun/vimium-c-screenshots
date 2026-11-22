@@ -31,7 +31,7 @@ const PAGE = `<!doctype html>
   #elemTop { height: 30px; background: rgb(250, 220, 0); }
   #elemBottom { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; background: rgb(0, 200, 120); }
   #wide { width: 2600px; height: 140px; background: linear-gradient(to right, rgb(0, 200, 0), rgb(200, 0, 200)); }
-  #footer { height: 600px; background: rgb(0, 180, 90); }
+  #footer { width: 2600px; height: 600px; background: rgb(0, 180, 90); }
 </style></head>
 <body>
   <div id="fixed"></div>
@@ -74,6 +74,12 @@ async function launch(origin, deviceScaleFactor = 1) {
   });
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
   const page = context.pages()[0] || await context.newPage();
+  page.on("console", (msg) => {
+    if (msg.type() === "error" || msg.type() === "warning" || msg.text().includes("screenshot")) {
+      console.log("[page]", msg.type(), msg.text());
+    }
+  });
+  page.on("pageerror", (err) => console.log("[pageerror]", err && err.message || err));
   await page.goto(origin, { waitUntil: "load" });
   await page.bringToFront();
   return { context, page, userDataDir };
