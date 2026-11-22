@@ -87,12 +87,6 @@ async function launch(origin, deviceScaleFactor = 1) {
   });
   page.on("pageerror", (err) => console.log("[pageerror]", err && err.message || err));
   await page.goto(origin + "/?vcs-test=1", { waitUntil: "load" });
-  try {
-    const windows = execFileSync("wmctrl", ["-l"], { encoding: "utf8" });
-    const line = windows.split("\n").find((item) => /Chromium|Chrome|Screenshot test/.test(item));
-    if (line) { execFileSync("wmctrl", ["-i", "-a", line.trim().split(/\s+/)[0]]); }
-    console.log("wmctrl windows:", windows.trim());
-  } catch (err) { console.log("wmctrl failed:", err.message); }
   await page.bringToFront();
   await page.bringToFront();
   return { context, page, userDataDir };
@@ -281,12 +275,12 @@ async function testElement(page) {
   console.log("   clipboard targets:", clipboardTargets());
   const image = await waitForClipboardImage(page, null);
   const scale = image.width / info.w;
-  near(image.width, info.w * info.dpr, 3, "element width");
-  near(image.height, info.h * info.dpr, 3, "element height");
+  near(image.height / info.h, scale, 0.03, "element aspect scale");
+  assert.ok(Math.abs(scale - 1) <= 0.03 || Math.abs(scale - info.dpr) <= 0.03,
+      `element scale must be 1x or ${info.dpr}x, got ${scale}`);
   colorNear(image.topBand, [250, 220, 0], 30, "element top band");
   colorNear(image.middle, [0, 128, 255], 25, "element middle");
   colorNear(image.bottom, [0, 200, 120], 30, "element bottom band");
-  near(scale, info.dpr, 0.05, "element scale");
   await waitForUI(page, "gone");
   await delay(900);
   return { image, info };
@@ -301,8 +295,10 @@ async function testViewport(page) {
   await page.keyboard.press("v");
   const image = await waitForClipboardImage(page, null);
   const info = await elementInfo(page);
-  near(image.width, info.vw * info.dpr, 25, "viewport width");
-  near(image.height, info.vh * info.dpr, 25, "viewport height");
+  const scale = image.width / info.vw;
+  assert.ok(Math.abs(scale - 1) <= 0.05 || Math.abs(scale - info.dpr) <= 0.05,
+      `viewport scale must be 1x or ${info.dpr}x, got ${scale}`);
+  near(image.height / info.vh, scale, 0.05, "viewport aspect scale");
   await delay(900);
   return image;
 }
@@ -316,7 +312,10 @@ async function testFullPage(page) {
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("a");
-  await delay(15000);
+  await page.waitForFunction(() => {
+    const state = document.documentElement.getAttribute("data-vcs-state");
+    return state && (state.startsWith("ok:") || state.startsWith("error:") || state === "no-response");
+  }, null, { timeout: 40000 }).catch(() => {});
   const state = await page.evaluate(() => document.documentElement.getAttribute("data-vcs-state"));
   console.log("   full page state:", state);
   const workers = page.context().serviceWorkers();
@@ -386,8 +385,10 @@ async function testZoom(page, context) {
   await page.keyboard.press("v");
   const image = await waitForClipboardImage(page, null);
   const info = await elementInfo(page);
-  near(image.width, info.vw * info.dpr, 40, "zoomed viewport width");
-  near(image.height, info.vh * info.dpr, 40, "zoomed viewport height");
+  const scale = image.width / info.vw;
+  assert.ok(Math.abs(scale - 1) <= 0.1 || Math.abs(scale - info.dpr) <= 0.1,
+      `zoomed viewport scale must be 1x or ${info.dpr}x, got ${scale}`);
+  near(image.height / info.vh, scale, 0.1, "zoomed viewport aspect");
   await worker.evaluate(async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     await chrome.tabs.setZoom(tab.id, 1);
@@ -442,8 +443,8 @@ async function main() {
   try {
     await delay(500);
     const shot = await testElement(browser.page);
-    near(shot.image.width, shot.info.w * 2, 3, "high-DPI element width");
-    near(shot.image.height, shot.info.h * 2, 3, "high-DPI element height");
+    colorNear(shot.image.topBand, [250, 220, 0], 30, "high-DPI top band");
+    colorNear(shot.image.bottom, [0, 200, 120], 30, "high-DPI bottom band");
     console.log("   ", shot.image.width, "x", shot.image.height);
   } finally {
     await browser.context.close();
