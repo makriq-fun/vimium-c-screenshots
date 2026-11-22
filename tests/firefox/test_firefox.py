@@ -333,10 +333,10 @@ def main():
         driver.save_screenshot(os.path.join("tests", "firefox", "out", "page.png"))
         print("   page screenshot saved")
 
-        print("1. element screenshot")
-        test_element(driver)
-        print("2. viewport screenshot")
+        print("1. viewport screenshot")
         test_viewport(driver)
+        print("2. element screenshot")
+        test_element(driver)
         print("3. full page screenshot")
         test_full_page(driver)
         print("4. Esc cancellation")

@@ -110,7 +110,7 @@ const nextFrame = (): Promise<void> => new Promise<void>(resolve => {
 const settle = async (): Promise<void> => {
   await nextFrame()
   await nextFrame()
-  await delay(40)
+  await delay(OnFirefox ? 180 : 40)
 }
 
 const errorText = (err: unknown): string =>
