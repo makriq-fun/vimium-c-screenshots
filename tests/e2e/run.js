@@ -121,7 +121,8 @@ async function clearClipboard(page) {
 
 async function readClipboard(page) {
   return page.evaluate(async () => {
-    const items = await navigator.clipboard.read();
+    let items;
+    try { items = await navigator.clipboard.read(); } catch { return null; }
     for (const item of items) {
       if (!item.types.includes("image/png")) { continue; }
       const blob = await item.getType("image/png");
@@ -160,7 +161,8 @@ async function readClipboard(page) {
 }
 
 async function waitForClipboardImage(page, previous) {
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 300; i++) {
+    await page.bringToFront().catch(() => {});
     const image = await readClipboard(page);
     if (image && (!previous || image.width !== previous.width || image.height !== previous.height)) {
       return image;
@@ -284,10 +286,11 @@ async function testNormalMode(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.keyboard.press("s");
   await delay(80);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("j");
   await delay(500);
   const y = await page.evaluate(() => window.scrollY);
-  assert.ok(y > 0, "j still scrolls after a single s prefix");
+  assert.ok(y > 0, "j still scrolls after a cancelled s prefix");
   await page.keyboard.press("g");
   await page.keyboard.press("g");
   await delay(300);

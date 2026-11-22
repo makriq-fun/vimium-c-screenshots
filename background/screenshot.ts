@@ -44,7 +44,7 @@ interface CaptureState { aborted: boolean }
 
 const activeCaptures = new Map<number, CaptureState>()
 
-const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const delay = (ms: number): Promise<void> => new Promise(resolve => { setTimeout((): void => { resolve() }, ms) })
 
 const errorText = (err: unknown): string =>
   err instanceof Error ? err.message : typeof err === "string" ? err : "" + err

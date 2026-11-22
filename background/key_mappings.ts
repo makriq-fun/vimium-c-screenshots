@@ -511,7 +511,10 @@ const populateKeyMap_ = (value: string | null): void => {
     for (let index = 0; index < orderedKeys.length; index++) {
       const key = orderedKeys[index], arr = key.match(keyRe_)!, last = arr.length - 1
       const key1 = stripKey_(arr[0]), val1 = ref.get(key1) as KeyAction.cmd | ChildKeyFSM | undefined
+      const sharesScreenshotPrefix = last > 0 && val1 === KeyAction.cmd
+          && (key === "ss" || key === "sa" || key === "sv")
       if (index >= builtinOffset_ && val1 !== undefined // a built-in mapping can only use up to 2 keys
+          && !sharesScreenshotPrefix
           && (val1 === KeyAction.cmd || last === 0 || typeof val1[arr[1]] === "object")) {
         keyToCommandMap_.delete(key)
         continue;
@@ -551,7 +554,7 @@ const populateKeyMap_ = (value: string | null): void => {
       } else if (typeof existing === "object") {
         existing[GlobalConsts.kFSMPrefixFallback] = KeyAction.cmd
       } else {
-        doesLog && logInactive_(key, existing)
+        doesLog && logInactive_(key, "")
       }
     }
     if (!nonNumList_) { /* empty */ }

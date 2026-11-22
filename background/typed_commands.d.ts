@@ -473,6 +473,9 @@ interface CmdNameIds {
   scrollToRight: kFgCmd.scroll
   scrollToTop: kFgCmd.scroll
   scrollUp: kFgCmd.scroll
+  screenShotElement: kFgCmd.screenshot
+  screenShotFullPage: kFgCmd.screenshot
+  screenShotViewport: kFgCmd.screenshot
   searchAs: kFgCmd.autoOpen
   searchInAnother: kBgCmd.searchInAnother
   sendToExtension: kBgCmd.sendToExtension
