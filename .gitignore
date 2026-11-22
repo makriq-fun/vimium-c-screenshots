@@ -47,3 +47,5 @@ scripts/build*.sh
 /dist-*
 
 tests/screenshot/.build
+__pycache__/
+tests/e2e/out/
