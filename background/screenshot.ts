@@ -45,6 +45,15 @@ interface CaptureState { aborted: boolean }
 
 const activeCaptures = new Map<number, CaptureState>()
 
+interface FfRuntime {
+  onMessage: { addListener(cb: (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender)
+      => Promise<ScreenshotNS.Message | void> | void): void }
+}
+const ffRuntime = OnFirefox ? browser_.runtime as unknown as FfRuntime : null
+const ffSendToTab = OnFirefox ? browser_.tabs.sendMessage as unknown as
+    ((tabId: number, msg: ScreenshotNS.Message, options: { frameId: number })
+      => Promise<ScreenshotNS.Message | null>) : null
+
 const delay = (ms: number): Promise<void> => new Promise(resolve => { setTimeout((): void => { resolve() }, ms) })
 
 const errorText = (err: unknown): string =>
@@ -101,6 +110,10 @@ const sendToTab = <T extends ScreenshotNS.Message>(tabId: number, msg: Screensho
       resolve(value)
     }
     const timer = setTimeout(() => { finish(null) }, TAB_MESSAGE_TIMEOUT)
+    if (ffSendToTab) {
+      ffSendToTab(tabId, msg, { frameId: 0 }).then(response => finish(response as T || null), () => { finish(null) })
+      return
+    }
     try {
       chrome.tabs.sendMessage(tabId, msg, { frameId: 0 }, (response: T) => {
         finish(response || null)
@@ -233,15 +246,14 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
 const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
     , state: CaptureState): Promise<ScreenshotNS.Message> => {
   const tabId = tab.id!
-  const windowId = typeof tab.windowId === "number" ? tab.windowId : chrome.windows.WINDOW_ID_CURRENT
+  const windowId = typeof tab.windowId === "number" ? tab.windowId : browser_.windows.WINDOW_ID_CURRENT
   if (tabId < 0) { return fail("This tab cannot be captured") }
   if (msg.m === "viewport") { return captureViewport(tabId, windowId) }
   return capturePage(tabId, windowId, msg.m || "full", state)
 }
 
-chrome.runtime.onMessage.addListener((
-      msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender
-      , sendResponse: (response: ScreenshotNS.Message) => void): boolean | void => {
+const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender):
+    Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
   const tab = sender.tab
   if (msg.t === "abort") {
@@ -251,17 +263,27 @@ chrome.runtime.onMessage.addListener((
   }
   if (msg.t !== "capture" || !tab || tab.id == null) { return }
   if (sender.frameId != null && sender.frameId !== 0) {
-    sendResponse(fail("Screenshots are available only in the top frame"))
-    return
+    return Promise.resolve(fail("Screenshots are available only in the top frame"))
   }
   const state: CaptureState = { aborted: false }
   activeCaptures.set(tab.id, state)
-  runCapture(tab, msg, state).then(result => {
+  return runCapture(tab, msg, state).then(result => {
     activeCaptures.delete(tab.id!)
-    sendResponse(result)
+    return result
   }, err => {
     activeCaptures.delete(tab.id!)
-    sendResponse(fail(errorText(err)))
+    return fail(errorText(err))
   })
-  return true
-})
+}
+
+if (ffRuntime) {
+  ffRuntime.onMessage.addListener(onMessage)
+} else {
+  chrome.runtime.onMessage.addListener((msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender
+      , sendResponse: (response: ScreenshotNS.Message) => void): boolean | void => {
+    const pending = onMessage(msg, sender)
+    if (!pending) { return }
+    pending.then(response => { response && sendResponse(response) }, () => {})
+    return true
+  })
+}

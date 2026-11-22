@@ -5,7 +5,7 @@
  * highlighted and `s` captures it. `sa`/`sv` capture the whole page or the visible viewport at once.
  * This module only measures and scrolls; the background page captures and copies the PNG.
  */
-import { clearTimeout_, fgCache, isTop, timeout_ } from "../lib/utils"
+import { clearTimeout_, fgCache, isTop, OnFirefox, timeout_ } from "../lib/utils"
 import {
   getMappedKey, isEscape_, isRepeated_, keybody_, removeHandler_, replaceOrSuppressMost_
 } from "../lib/keyboard_utils"
@@ -36,6 +36,13 @@ interface PageState {
 }
 
 const UI_ID = "vimium-c-screenshot-ui"
+
+interface FfContentRuntime {
+  onMessage: { addListener(cb: (msg: ScreenshotNS.Message)
+      => Promise<ScreenshotNS.Message | void> | void): void }
+  sendMessage(msg: ScreenshotNS.Message): Promise<ScreenshotNS.Message | null>
+}
+const ffContentRuntime = OnFirefox ? (browser as typeof chrome).runtime as unknown as FfContentRuntime : null
 
 /** limits the number of hint labels on pages with thousands of blocks */
 const MAX_LABELS = 1200
@@ -585,12 +592,25 @@ const onCaptureKey = (event: HandlerNS.Event): HandlerResult => {
   const key = getMappedKey(event, kModeId.Link)
   if (isEscape_(key) && !captureAborted) {
     captureAborted = true
-    try {
-      chrome.runtime.sendMessage({ vc: "vcs", t: "abort" } as ScreenshotNS.Message, () => { /* consume lastError */ })
-    } catch { /* ignored */ }
+    void sendToBackground({ vc: "vcs", t: "abort" } as ScreenshotNS.Message)
     hudTip(kTip.raw, 2, "Cancelling the screenshot...")
   }
   return HandlerResult.Prevent
+}
+
+const sendToBackground = (msg: ScreenshotNS.Message): Promise<ScreenshotNS.Message | null> => {
+  if (ffContentRuntime) {
+    try {
+      return ffContentRuntime.sendMessage(msg).then(res => res || null, () => null)
+    } catch {
+      return Promise.resolve(null)
+    }
+  }
+  return new Promise(resolve => {
+    try {
+      chrome.runtime.sendMessage(msg, (res: ScreenshotNS.Message) => { resolve(res || null) })
+    } catch { resolve(null) }
+  })
 }
 
 const requestCapture = (m: ShotMode): Promise<ScreenshotNS.Message | null> => new Promise(resolve => {
@@ -602,11 +622,7 @@ const requestCapture = (m: ShotMode): Promise<ScreenshotNS.Message | null> => ne
     resolve(result)
   }
   const timer = setTimeout((): void => { finish(null) }, 120_000)
-  try {
-    chrome.runtime.sendMessage({ vc: "vcs", t: "capture", m } as ScreenshotNS.Message, (res: ScreenshotNS.Message) => {
-      finish(res || null)
-    })
-  } catch { finish(null) }
+  void sendToBackground({ vc: "vcs", t: "capture", m } as ScreenshotNS.Message).then(finish)
 })
 
 const finishCapture = (result: ScreenshotNS.Message | null): void => {
@@ -668,25 +684,33 @@ export const activate = (options: CmdOptions[kFgCmd.screenshot]): void => {
   }
 }
 
-chrome.runtime.onMessage.addListener((
-      msg: ScreenshotNS.Message, _sender: chrome.runtime.MessageSender
-      , sendResponse: (res: ScreenshotNS.Message) => void): boolean | void => {
+const onExtensionMessage = (msg: ScreenshotNS.Message): Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
   if (msg.t === "begin") {
-    beginCapture(msg.m || "full").then(sendResponse, err => {
-      sendResponse({ vc: "vcs", t: "begin", ok: false, e: errorText(err) })
+    return beginCapture(msg.m || "full").then(res => res, err => {
+      return { vc: "vcs", t: "begin", ok: false, e: errorText(err) } as ScreenshotNS.Message
     })
-    return true
   }
   if (msg.t === "tile") {
-    prepareTile(msg).then(sendResponse, err => {
-      sendResponse({ vc: "vcs", t: "tile", ok: false, e: errorText(err) })
+    return prepareTile(msg).then(res => res, err => {
+      return { vc: "vcs", t: "tile", ok: false, e: errorText(err) } as ScreenshotNS.Message
     })
-    return true
   }
   if (msg.t === "end") {
     endCapture()
-    sendResponse({ vc: "vcs", t: "end", ok: true })
-    return
+    return Promise.resolve({ vc: "vcs", t: "end", ok: true } as ScreenshotNS.Message)
   }
-})
+}
+
+if (ffContentRuntime) {
+  ffContentRuntime.onMessage.addListener(onExtensionMessage)
+} else {
+  chrome.runtime.onMessage.addListener((
+        msg: ScreenshotNS.Message, _sender: chrome.runtime.MessageSender
+        , sendResponse: (res: ScreenshotNS.Message) => void): boolean | void => {
+    const pending = onExtensionMessage(msg)
+    if (!pending) { return }
+    pending.then(res => { res && sendResponse(res) }, () => {})
+    return true
+  })
+}
