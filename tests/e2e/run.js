@@ -341,6 +341,7 @@ async function testElement(page) {
   colorNear(image.bottom, [0, 200, 120], 30, "element bottom band");
   near(scale, info.dpr, 0.05, "element scale");
   await waitForUI(page, "gone");
+  await delay(900);
   return { image, info };
 }
 
@@ -354,12 +355,14 @@ async function testViewport(page) {
   const info = await elementInfo(page);
   near(image.width, info.vw * info.dpr, 25, "viewport width");
   near(image.height, info.vh * info.dpr, 25, "viewport height");
+  await delay(900);
   return image;
 }
 
 async function testFullPage(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.bringToFront();
+  await page.evaluate(() => document.documentElement.removeAttribute("data-vcs-state"));
   await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
@@ -377,6 +380,7 @@ async function testFullPage(page) {
   colorNear(image.rightBottom, [0, 180, 90], 20, "full page right footer");
   assert.ok(image.redRows.length > 0, "the fixed header is captured once at the top");
   assert.ok(Math.max(...image.redRows) < 60 * info.dpr, "the fixed header is not repeated down the page");
+  await delay(900);
   return image;
 }
 
