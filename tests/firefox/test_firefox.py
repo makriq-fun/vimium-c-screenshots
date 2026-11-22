@@ -321,6 +321,7 @@ def main():
     driver = webdriver.Firefox(options=options)
     try:
         driver.set_window_size(1280, 1000)
+        driver.set_window_position(0, 0)
         addon = driver.install_addon(os.path.abspath(xpi), temporary=True)
         print("installed", addon)
         driver.get(origin)
