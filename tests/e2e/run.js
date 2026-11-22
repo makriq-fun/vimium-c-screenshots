@@ -159,10 +159,8 @@ async function waitForUI(page, predicate) {
   }, predicate, { timeout: 8000 });
 }
 
-function clearClipboard() {
-  try {
-    execFileSync("xclip", ["-selection", "clipboard", "-i"], { input: " ", timeout: 5000 });
-  } catch { /* xclip may be unavailable outside CI */ }
+async function clearClipboard(page) {
+  try { await page.evaluate(() => navigator.clipboard.writeText(" ")); } catch { /* ignore */ }
 }
 
 function clipboardTargets() {
@@ -228,7 +226,7 @@ async function pasteClipboardImage(page) {
     box.focus();
   });
   await page.keyboard.press("Control+V");
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 10; i++) {
     const pasted = await page.evaluate(() => globalThis.__vcsPaste);
     if (pasted !== undefined) { return pasted && !pasted.empty ? pasted : null; }
     await delay(100);
@@ -237,7 +235,7 @@ async function pasteClipboardImage(page) {
 }
 
 async function waitForClipboardImage(page, previous) {
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 60; i++) {
     const pasted = await pasteClipboardImage(page);
     if (pasted && (!previous || pasted.width !== previous.width || pasted.height !== previous.height)) {
       return pasted;
@@ -283,7 +281,13 @@ async function elementInfo(page) {
 
 async function testElement(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  clearClipboard();
+  console.log("   page clipboard test:", await page.evaluate(async () => {
+    try {
+      await navigator.clipboard.writeText("clip-test");
+      return await navigator.clipboard.readText();
+    } catch (err) { return err.name + ": " + err.message; }
+  }), "targets:", clipboardTargets());
+  await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("s");
@@ -321,7 +325,7 @@ async function testElement(page) {
 
 async function testViewport(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  clearClipboard();
+  await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("v");
@@ -334,7 +338,7 @@ async function testViewport(page) {
 
 async function testFullPage(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  clearClipboard();
+  await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("a");
@@ -351,7 +355,7 @@ async function testFullPage(page) {
 
 async function testEscape(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  clearClipboard();
+  await clearClipboard(page);
   await pressSequence(page, ["s", "s"], 70);
   await waitForUI(page, "markers");
   await page.keyboard.press("Escape");
@@ -394,7 +398,7 @@ async function testZoom(page, context) {
     await chrome.tabs.setZoom(tab.id, 1.5);
   });
   await delay(700);
-  clearClipboard();
+  await clearClipboard(page);
   await page.keyboard.press("s");
   await delay(80);
   await page.keyboard.press("v");
