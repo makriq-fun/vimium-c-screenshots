@@ -268,10 +268,6 @@ async function testElement(page) {
     if (state && state !== "capturing:element") { console.log("   capture state:", state); break; }
     await delay(100);
   }
-  const workers = page.context().serviceWorkers();
-  if (workers[0]) {
-    console.log("   sw debug:", await workers[0].evaluate(() => globalThis.__vcsDebug || []));
-  }
   console.log("   clipboard targets:", clipboardTargets());
   const image = await waitForClipboardImage(page, null);
   const scale = image.width / info.w;
@@ -318,8 +314,6 @@ async function testFullPage(page) {
   }, null, { timeout: 40000 }).catch(() => {});
   const state = await page.evaluate(() => document.documentElement.getAttribute("data-vcs-state"));
   console.log("   full page state:", state);
-  const workers = page.context().serviceWorkers();
-  if (workers[0]) { console.log("   full page sw:", await workers[0].evaluate(() => globalThis.__vcsDebug || [])); }
   const image = await waitForClipboardImage(page, null);
   const info = await elementInfo(page);
   near(image.width, info.docW * info.dpr, 4, "full page width");

@@ -961,6 +961,5 @@ declare namespace ScreenshotNS {
     /** error text */ e?: string
     /** PNG data URL for the content-side clipboard fallback */ u?: string
     /** page state */ s?: Metrics
-    /** diagnostic details, only used by tests */ d?: string
   }
 }

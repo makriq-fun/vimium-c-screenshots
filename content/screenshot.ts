@@ -634,8 +634,8 @@ const requestCapture = (m: ShotMode): Promise<ScreenshotNS.Message | null> => ne
 
 const finishCapture = (result: ScreenshotNS.Message | null): void => {
   const aborted = captureAborted || !!result && result.e === "Screenshot cancelled"
-  setTestState(!result ? "no-response" : (result.ok ? "ok:" + result.w + "x" + result.h
-      : "error:" + (result.e || "")) + (result.d ? " [" + result.d + "]" : ""))
+  setTestState(!result ? "no-response" : result.ok ? "ok:" + result.w + "x" + result.h
+      : "error:" + (result.e || ""))
   captureBusy = false
   captureAborted = false
   captureTarget = null

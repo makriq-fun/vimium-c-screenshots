@@ -23,10 +23,7 @@ declare function createImageBitmap(blob: Blob): Promise<ImageBitmap>
 
 interface OffscreenContext2D {
   drawImage(image: ImageBitmap, dx: number, dy: number): void
-  drawImage(image: ImageBitmap, sx: number, sy: number, sw: number, sh: number
-      , dx: number, dy: number, dw: number, dh: number): void
   fillRect(x: number, y: number, w: number, h: number): void
-  getImageData(x: number, y: number, w: number, h: number): { data: ArrayLike<number> }
   imageSmoothingEnabled: boolean
 }
 
@@ -47,12 +44,6 @@ interface ShotCanvas {
 interface CaptureState { aborted: boolean }
 
 const activeCaptures = new Map<number, CaptureState>()
-const debugLog: string[] = ["loaded"]
-;(globalThis as unknown as { __vcsDebug?: string[] }).__vcsDebug = debugLog
-const debug = (text: string): void => {
-  debugLog.push(text)
-  if (debugLog.length > 50) { debugLog.shift() }
-}
 
 interface FfRuntime {
   onMessage: { addListener(cb: (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender)
@@ -162,27 +153,16 @@ const blobToDataUrl = async (blob: Blob): Promise<string> => {
   return "data:image/png;base64," + btoa(binary)
 }
 
-const samplePixel = (bitmap: ImageBitmap, x: number, y: number): string => {
-  const canvas = makeCanvas(1, 1)
-  if (!canvas) { return "no-canvas" }
-  canvas.ctx.drawImage(bitmap, x, y, 1, 1, 0, 0, 1, 1)
-  const data = canvas.ctx.getImageData(0, 0, 1, 1).data
-  return data[0] + "," + data[1] + "," + data[2] + "," + data[3]
-}
-
 const copyImageBlob = (blob: Blob, tabId: number): Promise<boolean> => {
-  debug("copy blob " + blob.size)
   if (OnFirefox) {
-    return blob.arrayBuffer().then(copyPngData, () => false).then(ok => { debug("copy ff " + ok); return ok })
+    return blob.arrayBuffer().then(copyPngData, () => false)
   }
   return blobToDataUrl(blob).then(url => sendToTab<ScreenshotNS.Message>(tabId, {
     vc: "vcs", t: "copyImage", u: url,
   })).then(res => {
-    debug("copy page " + !!res)
     if (res && res.ok) { return true }
     return new Promise<boolean>(resolve => {
       handleImageUrl("", blob, kTeeTask.CopyImage, (copied: BOOL | boolean) => {
-        debug("copy chrome " + !!copied)
         resolve(!!copied)
       }, "screenshot.png", "")
     })
@@ -220,8 +200,6 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
   const begin = await sendToTab(tabId, { vc: "vcs", t: "begin", m: mode })
   if (!begin || !begin.ok || !begin.s) { return fail(begin && begin.e || "Cannot access the page") }
   const page = begin.s
-  debug("begin rect " + JSON.stringify(page.r) + " dw=" + page.dw + " dh=" + page.dh
-      + " vw=" + page.vw + " vh=" + page.vh)
   const rect: ShotRect | null = mode === "element" && page.r ? page.r
       : mode === "full" ? { x: 0, y: 0, w: page.dw, h: page.dh }
       : null
@@ -264,15 +242,12 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
           canvas = makeCanvas(size.w, size.h)
           if (!canvas) { throw new Error("Not enough memory to create the screenshot canvas") }
           outW = size.w; outH = size.h
-          debug("raw px " + samplePixel(bitmap, 20, 14))
           first = false
         } else if (Math.abs(bitmap.width - Math.round(prepared.s.vw * scaleX)) > 1
             || Math.abs(bitmap.height - Math.round(prepared.s.vh * scaleY)) > 1) {
           throw new Error("The page zoom changed while capturing")
         }
         if (!canvas) { throw new Error("The screenshot canvas is missing") }
-        debug("tile scroll " + prepared.s.x + "," + prepared.s.y + " rect " + rect.x + "," + rect.y
-            + " scale " + scaleX + " img " + bitmap.width + "x" + bitmap.height)
         canvas.ctx.drawImage(bitmap, (prepared.s.x - rect.x) * scaleX, (prepared.s.y - rect.y) * scaleY)
       } finally {
         bitmap.close()
@@ -308,7 +283,6 @@ const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
   const tabId = tab.id!
   const windowId = typeof tab.windowId === "number" ? tab.windowId : browser_.windows.WINDOW_ID_CURRENT
   if (tabId < 0) { return fail("This tab cannot be captured") }
-  debug("ensure active " + tabId)
   await ensureActive(tabId)
   if (msg.m === "viewport") { return captureViewport(tabId, windowId) }
   return capturePage(tabId, windowId, msg.m || "full", state)
@@ -317,9 +291,6 @@ const runCapture = async (tab: chrome.tabs.Tab, msg: ScreenshotNS.Message
 const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSender):
     Promise<ScreenshotNS.Message | void> | void => {
   if (!msg || msg.vc !== "vcs") { return }
-  debug("msg t=" + msg.t + " m=" + msg.m + " vc=" + msg.vc + " tab=" + (sender.tab && sender.tab.id)
-      + " active=" + (sender.tab && sender.tab.active) + " frame=" + sender.frameId)
-  console.warn("[vimium-c-screenshots] message:", msg.t, "frame", sender.frameId)
   const tab = sender.tab
   if (msg.t === "abort") {
     const active = tab && tab.id != null ? activeCaptures.get(tab.id) : null
@@ -334,12 +305,9 @@ const onMessage = (msg: ScreenshotNS.Message, sender: chrome.runtime.MessageSend
   activeCaptures.set(tab.id, state)
   return runCapture(tab, msg, state).then(result => {
     activeCaptures.delete(tab.id!)
-    debug("result ok=" + result.ok + " e=" + result.e + " w=" + result.w + " h=" + result.h)
-    result.d = debugLog.slice(-10).join(" | ")
     return result
   }, err => {
     activeCaptures.delete(tab.id!)
-    debug("result threw: " + errorText(err))
     return fail(errorText(err))
   })
 }
