@@ -328,7 +328,11 @@ def main():
             pass
         addon = driver.install_addon(os.path.abspath(xpi), temporary=True)
         print("installed", addon)
+        print("windows before page:", driver.window_handles, "current:", driver.current_window_handle)
+        driver.switch_to.new_window("tab")
         driver.get(origin)
+        print("windows after page:", driver.window_handles, "current:", driver.current_window_handle,
+              "size:", driver.get_window_size())
         WebDriverWait(driver, 20).until(
             lambda d: d.execute_script("return document.readyState") == "complete")
         driver.find_element(By.TAG_NAME, "body").click()
