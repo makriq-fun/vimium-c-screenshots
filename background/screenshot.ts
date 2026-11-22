@@ -93,13 +93,6 @@ const makeCanvas = (width: number, height: number): ShotCanvas | null => {
 const captureVisible = (windowId: number, tabId: number): Promise<string | null> => new Promise(resolve => {
   try {
     if (OnFirefox) {
-      const captureTab = (Tabs_ as unknown as {
-        captureTab?: (tabId: number, options: { format: string }) => Promise<string>
-      }).captureTab
-      if (captureTab) {
-        captureTab.call(Tabs_, tabId, { format: "png" }).then(url => resolve(url || null), () => resolve(null))
-        return
-      }
       const capture = Tabs_.captureVisibleTab as unknown as
           ((options: { format: string }) => Promise<string>)
       capture.call(Tabs_, { format: "png" }).then(url => resolve(url || null), () => resolve(null))
@@ -216,6 +209,8 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
   const begin = await sendToTab(tabId, { vc: "vcs", t: "begin", m: mode })
   if (!begin || !begin.ok || !begin.s) { return fail(begin && begin.e || "Cannot access the page") }
   const page = begin.s
+  debug("begin rect " + JSON.stringify(page.r) + " dw=" + page.dw + " dh=" + page.dh
+      + " vw=" + page.vw + " vh=" + page.vh)
   const rect: ShotRect | null = mode === "element" && page.r ? page.r
       : mode === "full" ? { x: 0, y: 0, w: page.dw, h: page.dh }
       : null
@@ -264,6 +259,8 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
           throw new Error("The page zoom changed while capturing")
         }
         if (!canvas) { throw new Error("The screenshot canvas is missing") }
+        debug("tile scroll " + prepared.s.x + "," + prepared.s.y + " rect " + rect.x + "," + rect.y
+            + " scale " + scaleX + " img " + bitmap.width + "x" + bitmap.height)
         canvas.ctx.drawImage(bitmap, (prepared.s.x - rect.x) * scaleX, (prepared.s.y - rect.y) * scaleY)
       } finally {
         bitmap.close()

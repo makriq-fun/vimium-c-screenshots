@@ -236,13 +236,13 @@ async function pasteClipboardImage(page) {
 
 async function waitForClipboardImage(page, previous) {
   for (let i = 0; i < 60; i++) {
-    const pasted = await pasteClipboardImage(page);
-    if (pasted && (!previous || pasted.width !== previous.width || pasted.height !== previous.height)) {
-      return pasted;
-    }
     const image = readClipboardImage();
     if (image && (!previous || image.width !== previous.width || image.height !== previous.height)) {
       return image;
+    }
+    const pasted = await pasteClipboardImage(page);
+    if (pasted && (!previous || pasted.width !== previous.width || pasted.height !== previous.height)) {
+      return pasted;
     }
     await delay(100);
   }
