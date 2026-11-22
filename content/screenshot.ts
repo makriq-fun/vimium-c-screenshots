@@ -697,7 +697,7 @@ export const activate = (options: CmdOptions[kFgCmd.screenshot]): void => {
 const copyImageInPage = async (url: string): Promise<boolean> => {
   try {
     const fetchPage = (window as unknown as { fetch: (u: string) => Promise<{ blob(): Promise<Blob> }> }).fetch
-    const blob = await fetchPage(url).blob()
+    const blob = await (await fetchPage(url)).blob()
     const clipboard = navigator.clipboard
     if (!clipboard || !clipboard.write || typeof ClipboardItem !== "function") { return false }
     await clipboard.write!([new ClipboardItem({ "image/png": blob })])
