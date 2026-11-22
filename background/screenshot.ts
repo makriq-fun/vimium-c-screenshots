@@ -23,7 +23,10 @@ declare function createImageBitmap(blob: Blob): Promise<ImageBitmap>
 
 interface OffscreenContext2D {
   drawImage(image: ImageBitmap, dx: number, dy: number): void
+  drawImage(image: ImageBitmap, sx: number, sy: number, sw: number, sh: number
+      , dx: number, dy: number, dw: number, dh: number): void
   fillRect(x: number, y: number, w: number, h: number): void
+  getImageData(x: number, y: number, w: number, h: number): { data: ArrayLike<number> }
   imageSmoothingEnabled: boolean
 }
 
@@ -159,6 +162,14 @@ const blobToDataUrl = async (blob: Blob): Promise<string> => {
   return "data:image/png;base64," + btoa(binary)
 }
 
+const samplePixel = (bitmap: ImageBitmap, x: number, y: number): string => {
+  const canvas = makeCanvas(1, 1)
+  if (!canvas) { return "no-canvas" }
+  canvas.ctx.drawImage(bitmap, x, y, 1, 1, 0, 0, 1, 1)
+  const data = canvas.ctx.getImageData(0, 0, 1, 1).data
+  return data[0] + "," + data[1] + "," + data[2] + "," + data[3]
+}
+
 const copyImageBlob = (blob: Blob, tabId: number): Promise<boolean> => {
   debug("copy blob " + blob.size)
   if (OnFirefox) {
@@ -253,6 +264,7 @@ const capturePage = async (tabId: number, windowId: number, mode: ScreenshotNS.M
           canvas = makeCanvas(size.w, size.h)
           if (!canvas) { throw new Error("Not enough memory to create the screenshot canvas") }
           outW = size.w; outH = size.h
+          debug("raw px " + samplePixel(bitmap, 20, 14))
           first = false
         } else if (Math.abs(bitmap.width - Math.round(prepared.s.vw * scaleX)) > 1
             || Math.abs(bitmap.height - Math.round(prepared.s.vh * scaleY)) > 1) {
